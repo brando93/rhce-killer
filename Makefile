@@ -1,4 +1,4 @@
-.PHONY: up ssh destroy reset status help
+.PHONY: up ssh destroy reset status help bootstrap-status
 
 MY_IP    := $(shell curl -s ifconfig.me)/32
 TF_DIR   := terraform
@@ -8,12 +8,13 @@ help:
 	@echo ""
 	@echo "  RHCE Killer — EX294 Lab"
 	@echo ""
-	@echo "  make up       — spin up 3 EC2 instances (detects your IP)"
-	@echo "  make ssh      — SSH into control node as rocky"
-	@echo "  make destroy  — destroy all resources (stop billing)"
-	@echo "  make status   — show IPs"
-	@echo "  make debug    — tail bootstrap log on control node"
-	@echo "  make ip-fix   — update SG if your IP changed"
+	@echo "  make up               — spin up 3 EC2 instances (detects your IP)"
+	@echo "  make bootstrap-status — check if bootstrap is complete"
+	@echo "  make ssh              — SSH into control node as rocky"
+	@echo "  make destroy          — destroy all resources (stop billing)"
+	@echo "  make status           — show IPs"
+	@echo "  make debug            — tail bootstrap log on control node"
+	@echo "  make ip-fix           — update SG if your IP changed"
 	@echo ""
 
 up:
@@ -23,6 +24,26 @@ up:
 	@echo ""
 	@echo "Wait ~3 min for bootstrap, then: make ssh"
 	@echo "Watch bootstrap: make debug"
+
+bootstrap-status:
+	@echo "Checking bootstrap status..."
+	@CONTROL_IP=$$(cd $(TF_DIR) && terraform output -raw control_public_ip 2>/dev/null); \
+	if [ -z "$$CONTROL_IP" ]; then \
+		echo "❌ Lab not running. Run 'make up' first."; \
+		exit 1; \
+	fi; \
+	if ssh -i $(KEY_FILE) -o StrictHostKeyChecking=no -o ConnectTimeout=5 rocky@$$CONTROL_IP \
+		"sudo grep -q 'Bootstrap complete' /var/log/rhce-bootstrap.log 2>/dev/null" 2>/dev/null; then \
+		echo "✅ Bootstrap complete! You can now run 'make ssh'"; \
+		echo ""; \
+		ssh -i $(KEY_FILE) -o StrictHostKeyChecking=no rocky@$$CONTROL_IP \
+			"sudo tail -3 /var/log/rhce-bootstrap.log"; \
+	else \
+		echo "⏳ Bootstrap still running... (this takes ~3 minutes)"; \
+		echo ""; \
+		echo "Watch progress with: make debug"; \
+		echo "Or try again in 30 seconds: make bootstrap-status"; \
+	fi
 
 ssh:
 	@CONTROL_IP=$$(cd $(TF_DIR) && terraform output -raw control_public_ip); \

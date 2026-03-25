@@ -54,22 +54,34 @@ cd rhce-killer
 # 2. Spin up the lab (auto-detects your IP)
 make up
 
-# 3. Wait ~2 minutes for bootstrap, then SSH in
+# 3. Wait ~3 minutes for bootstrap to complete
+# Check bootstrap status (shows ✅ when ready):
+make bootstrap-status
+
+# 4. SSH into the control node
 make ssh
 
-# 4. On the control node — start exam 01
+# 5. Switch to student user (exam user)
+sudo su - student
+
+# 6. Verify connectivity to managed nodes
+cd ~/ansible
+ansible all -m ping
+
+# 7. Start exam 01
 bash ~/exams/exam-01/START.sh
 
-# 5. Read the tasks
+# 8. Read the tasks
 cat ~/exams/exam-01/README.md
 
-# 6. Work from your ansible directory
+# 9. Work from your ansible directory
 cd ~/ansible
 
-# 7. Grade yourself when done
+# 10. Grade yourself when done
 bash ~/exams/exam-01/grade.sh
 
-# 8. DESTROY the lab when done (stop billing!)
+# 11. DESTROY the lab when done (stop billing!)
+exit
 exit
 make destroy
 ```
@@ -79,16 +91,53 @@ make destroy
 ## Lab topology
 
 ```
-Your Mac
-  │
-  │ SSH (port 22, your IP only)
-  ▼
-control.example.com  10.0.1.10  (t3.medium, public IP)
-  │
-  │ SSH + Ansible (internal only)
-  ├──► node1.example.com  10.0.1.11  (t3.micro, private)
-  └──► node2.example.com  10.0.1.12  (t3.micro, private)
+                    Internet
+                        │
+                        │
+                   ┌────▼────┐
+                   │   IGW   │
+                   └────┬────┘
+                        │
+        ┌───────────────┴───────────────┐
+        │     VPC 10.0.0.0/16           │
+        │                               │
+        │  ┌─────────────────────────┐  │
+        │  │ Public Subnet           │  │
+        │  │ 10.0.1.0/24             │  │
+        │  │                         │  │
+Your Mac ──► control.example.com    │  │
+SSH only │  │ 10.0.1.10 (t3.medium) │  │
+        │  │ Public IP               │  │
+        │  └────────┬────────────────┘  │
+        │           │                   │
+        │           │ SSH + Ansible     │
+        │           │                   │
+        │  ┌────────▼────────────────┐  │
+        │  │ Private Subnet          │  │
+        │  │ 10.0.2.0/24             │  │
+        │  │                         │  │
+        │  │ node1.example.com       │  │
+        │  │ 10.0.2.11 (t3.micro)    │  │
+        │  │                         │  │
+        │  │ node2.example.com       │  │
+        │  │ 10.0.2.12 (t3.micro)    │  │
+        │  │                         │  │
+        │  └────────┬────────────────┘  │
+        │           │                   │
+        │      ┌────▼────┐              │
+        │      │   NAT   │              │
+        │      │ Gateway │              │
+        │      └────┬────┘              │
+        │           │                   │
+        └───────────┼───────────────────┘
+                    │
+                Internet (for package downloads)
 ```
+
+**Network Architecture:**
+- **Public Subnet (10.0.1.0/24)**: Control node with direct internet access via Internet Gateway
+- **Private Subnet (10.0.2.0/24)**: Managed nodes with internet access via NAT Gateway
+- **Security**: Only your IP can SSH to control node; managed nodes only accessible from control node
 
 All nodes run **Rocky Linux 9** — binary compatible with RHEL 9 (what the exam uses).
 
@@ -120,14 +169,14 @@ Each exam mirrors the real EX294:
 ## Available commands
 
 ```bash
-make up          # Spin up the lab
-make ssh         # SSH into control node
-make ssh-student # SSH as student user (exam user)
-make status      # Show IPs and instance status
-make destroy     # Destroy all resources
-make reset       # Reset exam state (keep infra)
-make cost        # Show current cost estimate
-make ip-update   # Update SG if your IP changed
+make up               # Spin up the lab
+make bootstrap-status # Check if bootstrap is complete (shows ✅ when ready)
+make ssh              # SSH into control node
+make ssh-student      # SSH as student user (exam user)
+make debug            # Watch bootstrap log in real-time
+make status           # Show IPs and instance status
+make destroy          # Destroy all resources
+make ip-fix           # Update security group if your IP changed
 ```
 
 ---
