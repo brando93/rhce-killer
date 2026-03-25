@@ -195,7 +195,7 @@ while true; do
   if   [ "$REMAINING" -le 300 ];  then COLOR="\033[0;31m"
   elif [ "$REMAINING" -le 900 ];  then COLOR="\033[1;33m"
   else COLOR="\033[0;36m"; fi
-  printf "\r  ${COLOR}Time remaining: %02d:%02d:%02d\033[0m   " "$HH" "$MM" "$SS"
+  printf "\r  $${COLOR}Time remaining: %02d:%02d:%02d\033[0m   " "$HH" "$MM" "$SS"
   sleep 1
 done
 STARTEOF
@@ -213,52 +213,52 @@ check() {
   local DESC="$1" PTS="$2" CMD="$3"
   TOTAL=$((TOTAL + PTS))
   if eval "$CMD" &>/dev/null; then
-    echo -e "  ${GREEN}[PASS]${NC} (+${PTS}pts) $DESC"; PASS=$((PASS + PTS))
+    echo -e "  $${GREEN}[PASS]$${NC} (+$${PTS}pts) $DESC"; PASS=$((PASS + PTS))
   else
-    echo -e "  ${RED}[FAIL]${NC} (  0pts) $DESC"; FAIL=$((FAIL + PTS))
+    echo -e "  $${RED}[FAIL]$${NC} (  0pts) $DESC"; FAIL=$((FAIL + PTS))
   fi
 }
 
-echo -e "\n${BOLD}${CYAN}═══════════════════════════════════════════${NC}"
-echo -e "${BOLD}${CYAN}   RHCE KILLER — Exam 01 Score${NC}"
-echo -e "${BOLD}${CYAN}═══════════════════════════════════════════${NC}\n"
+echo -e "\n$${BOLD}$${CYAN}═══════════════════════════════════════════$${NC}"
+echo -e "$${BOLD}$${CYAN}   RHCE KILLER — Exam 01 Score$${NC}"
+echo -e "$${BOLD}$${CYAN}═══════════════════════════════════════════$${NC}\n"
 
-echo -e "${BOLD}Task 01 — Ad-hoc commands (5 pts)${NC}"
+echo -e "$${BOLD}Task 01 — Ad-hoc commands (5 pts)$${NC}"
 check "adhoc-vim.sh exists" 2 "test -f $ANSIBLE_DIR/adhoc-vim.sh"
 check "vim-enhanced on node1" 2 "ansible node1 -m command -a 'rpm -q vim-enhanced' -i inventory | grep -v 'not installed'"
 check "vim-enhanced on node2" 1 "ansible node2 -m command -a 'rpm -q vim-enhanced' -i inventory | grep -v 'not installed'"
 
-echo -e "\n${BOLD}Task 02 — /etc/motd (10 pts)${NC}"
+echo -e "\n$${BOLD}Task 02 — /etc/motd (10 pts)$${NC}"
 check "motd.yml exists" 2 "test -f $ANSIBLE_DIR/motd.yml"
 check "/etc/motd correct on node1" 4 "ansible node1 -m command -a 'grep -q \"Managed by Ansible\" /etc/motd' -i inventory"
 check "/etc/motd correct on node2" 4 "ansible node2 -m command -a 'grep -q \"Managed by Ansible\" /etc/motd' -i inventory"
 
-echo -e "\n${BOLD}Task 03 — Custom facts (10 pts)${NC}"
+echo -e "\n$${BOLD}Task 03 — Custom facts (10 pts)$${NC}"
 check "facts.yml exists" 2 "test -f $ANSIBLE_DIR/facts.yml"
 check "rhce.fact on node1" 4 "ansible node1 -m command -a 'grep -q version=1 /etc/ansible/facts.d/rhce.fact' -i inventory"
 check "rhce.fact on node2" 4 "ansible node2 -m command -a 'grep -q version=1 /etc/ansible/facts.d/rhce.fact' -i inventory"
 
-echo -e "\n${BOLD}Task 04 — Vault (15 pts)${NC}"
+echo -e "\n$${BOLD}Task 04 — Vault (15 pts)$${NC}"
 check "vault_pass.txt exists" 2 "test -f $ANSIBLE_DIR/vault_pass.txt"
 check "secret.yml is encrypted" 4 "head -1 $ANSIBLE_DIR/group_vars/all/secret.yml 2>/dev/null | grep -q ANSIBLE_VAULT"
 check "secret.yml decrypts OK" 3 "ansible-vault view $ANSIBLE_DIR/group_vars/all/secret.yml --vault-password-file $ANSIBLE_DIR/vault_pass.txt | grep -q db_user"
 check "create-user.yml exists" 2 "test -f $ANSIBLE_DIR/create-user.yml"
 check "dbadmin user on node1" 4 "ansible node1 -m command -a 'id dbadmin' -i inventory"
 
-echo -e "\n${BOLD}Task 05 — Loops/conditionals (10 pts)${NC}"
+echo -e "\n$${BOLD}Task 05 — Loops/conditionals (10 pts)$${NC}"
 check "packages.yml exists" 1 "test -f $ANSIBLE_DIR/packages.yml"
 check "httpd running on node1" 3 "ansible node1 -m command -a 'systemctl is-active httpd' -i inventory | grep -q active"
 check "firewalld running on node1" 3 "ansible node1 -m command -a 'systemctl is-active firewalld' -i inventory | grep -q active"
 check "firewalld running on node2" 3 "ansible node2 -m command -a 'systemctl is-active firewalld' -i inventory | grep -q active"
 
-echo -e "\n${BOLD}Task 06 — Jinja2 templates (15 pts)${NC}"
+echo -e "\n$${BOLD}Task 06 — Jinja2 templates (15 pts)$${NC}"
 check "vhost.conf.j2 exists" 3 "test -f $ANSIBLE_DIR/templates/vhost.conf.j2"
 check "vhost.yml exists" 2 "test -f $ANSIBLE_DIR/vhost.yml"
 check "vhost.conf on node1" 4 "ansible node1 -m command -a 'test -f /etc/httpd/conf.d/vhost.conf' -i inventory"
 check "index.html on node1" 3 "ansible node1 -m command -a 'test -f /var/www/node1/index.html' -i inventory"
 check "index.html has hostname" 3 "ansible node1 -m command -a 'grep -q node1 /var/www/node1/index.html' -i inventory"
 
-echo -e "\n${BOLD}Task 07 — Roles (20 pts)${NC}"
+echo -e "\n$${BOLD}Task 07 — Roles (20 pts)$${NC}"
 check "baseline role exists" 2 "test -d $ANSIBLE_DIR/roles/baseline"
 check "tasks/main.yml exists" 2 "test -f $ANSIBLE_DIR/roles/baseline/tasks/main.yml"
 check "baseline.yml exists" 2 "test -f $ANSIBLE_DIR/baseline.yml"
@@ -267,33 +267,33 @@ check "timezone set on node1" 4 "ansible node1 -m command -a 'timedatectl | grep
 check "/etc/baseline_applied on node1" 4 "ansible node1 -m command -a 'test -f /etc/baseline_applied' -i inventory"
 check "/etc/baseline_applied on node2" 3 "ansible node2 -m command -a 'test -f /etc/baseline_applied' -i inventory"
 
-echo -e "\n${BOLD}Task 08 — Collections (10 pts)${NC}"
+echo -e "\n$${BOLD}Task 08 — Collections (10 pts)$${NC}"
 check "requirements.yml exists" 2 "test -f $ANSIBLE_DIR/collections/requirements.yml"
 check "ansible.posix installed" 4 "ansible-galaxy collection list --collections-path $ANSIBLE_DIR/collections 2>/dev/null | grep -q 'ansible.posix'"
 check "posix-demo.yml exists" 2 "test -f $ANSIBLE_DIR/posix-demo.yml"
 check "tmpbind mounted on node2" 2 "ansible node2 -m command -a 'mount | grep tmpbind' -i inventory"
 
-echo -e "\n${BOLD}Task 09 — Error handling (10 pts)${NC}"
+echo -e "\n$${BOLD}Task 09 — Error handling (10 pts)$${NC}"
 check "error-handling.yml exists" 2 "test -f $ANSIBLE_DIR/error-handling.yml"
 check "block/rescue in playbook" 3 "grep -q rescue $ANSIBLE_DIR/error-handling.yml"
 check "/tmp/health-check-ran node1" 3 "ansible node1 -m command -a 'cat /tmp/health-check-ran' -i inventory | grep -q ok"
 check "/tmp/health-check-ran node2" 2 "ansible node2 -m command -a 'cat /tmp/health-check-ran' -i inventory | grep -q ok"
 
-echo -e "\n${BOLD}Task 10 — Galaxy role (15 pts)${NC}"
+echo -e "\n$${BOLD}Task 10 — Galaxy role (15 pts)$${NC}"
 check "roles/requirements.yml exists" 3 "test -f $ANSIBLE_DIR/roles/requirements.yml"
 check "geerlingguy.apache installed" 4 "test -d $ANSIBLE_DIR/roles/geerlingguy.apache"
 check "galaxy-apache.yml exists" 3 "test -f $ANSIBLE_DIR/galaxy-apache.yml"
 check "Apache on node1 port 80" 5 "ansible node1 -m uri -a 'url=http://node1.example.com status_code=200' -i inventory"
 
 PCT=$(( PASS * 100 / TOTAL ))
-echo -e "\n${BOLD}${CYAN}═══════════════════════════════════════════${NC}"
+echo -e "\n$${BOLD}$${CYAN}═══════════════════════════════════════════$${NC}"
 if [ "$PCT" -ge 70 ]; then
-  echo -e "${BOLD}\033[0;32m  RESULT: PASS ✓${NC}"
+  echo -e "$${BOLD}\033[0;32m  RESULT: PASS ✓$${NC}"
 else
-  echo -e "${BOLD}\033[0;31m  RESULT: FAIL ✗${NC}"
+  echo -e "$${BOLD}\033[0;31m  RESULT: FAIL ✗$${NC}"
 fi
-echo -e "${BOLD}  Score: ${PASS}/${TOTAL} (${PCT}%)   Passing: 70%${NC}"
-echo -e "${CYAN}═══════════════════════════════════════════${NC}\n"
+echo -e "$${BOLD}  Score: $${PASS}/$${TOTAL} ($${PCT}%)   Passing: 70%$${NC}"
+echo -e "$${CYAN}═══════════════════════════════════════════$${NC}\n"
 GRADEEOF
 
 chmod +x "$EXAMS_DIR/START.sh" "$EXAMS_DIR/grade.sh"
