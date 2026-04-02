@@ -1,4 +1,4 @@
-.PHONY: up ssh destroy reset status help bootstrap-status
+.PHONY: up ssh destroy reset status help bootstrap-status sync-exams
 
 MY_IP    := $(shell curl -s ifconfig.me)/32
 TF_DIR   := terraform
@@ -10,7 +10,9 @@ help:
 	@echo ""
 	@echo "  make up               — spin up 3 EC2 instances (detects your IP)"
 	@echo "  make bootstrap-status — check if bootstrap is complete"
+	@echo "  make sync-exams       — sync all exam files to control node"
 	@echo "  make ssh              — SSH into control node as rocky"
+	@echo "  make ssh-student      — SSH into control node as student"
 	@echo "  make destroy          — destroy all resources (stop billing)"
 	@echo "  make status           — show IPs"
 	@echo "  make debug            — tail bootstrap log on control node"
@@ -72,3 +74,26 @@ ip-fix:
 	@echo "Updating your IP to: $(MY_IP)"
 	@cd $(TF_DIR) && terraform apply -var="my_ip=$(MY_IP)" \
 	  -target=aws_security_group.control -auto-approve
+
+sync-exams:
+	@echo "Syncing exam files to control node..."
+	@CONTROL_IP=$$(cd $(TF_DIR) && terraform output -raw control_public_ip 2>/dev/null); \
+	if [ -z "$$CONTROL_IP" ]; then \
+		echo "❌ Lab not running. Run 'make up' first."; \
+		exit 1; \
+	fi; \
+	echo "Copying exam files to control node..."; \
+	scp -i $(KEY_FILE) -o StrictHostKeyChecking=no -r exam-01 exam-02 exam-03 exam-04 exam-05 rocky@$$CONTROL_IP:/tmp/; \
+	echo "Installing exam files..."; \
+	ssh -i $(KEY_FILE) -o StrictHostKeyChecking=no rocky@$$CONTROL_IP \
+		"sudo rm -rf /home/student/exams/* && \
+		 sudo cp -r /tmp/exam-* /home/student/exams/ && \
+		 sudo chown -R student:student /home/student/exams/ && \
+		 sudo chmod +x /home/student/exams/*/*.sh && \
+		 sudo rm -rf /tmp/exam-*"; \
+	echo "✅ All exam files synced successfully!"; \
+	echo ""; \
+	echo "You can now:"; \
+	echo "  1. SSH to control: make ssh-student"; \
+	echo "  2. View exams: ls ~/exams/"; \
+	echo "  3. Start exam: bash ~/exams/exam-01/START.sh"

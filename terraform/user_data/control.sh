@@ -123,47 +123,116 @@ chown -R student:student $ANSIBLE_DIR
 echo "SSH passwordless access configured via bootstrap scripts"
 
 # ─────────────────────────────────────────────
-# Create exam files - use simple approach to avoid user_data size limit
+# Copy exam files from local repository
+# Note: For production, push to GitHub and use:
+# REPO_URL="https://raw.githubusercontent.com/YOUR_USERNAME/rhce-killer/main"
 # ─────────────────────────────────────────────
-mkdir -p /home/student/exams/exam-01
+EXAMS_DIR="/home/student/exams"
+LOCAL_REPO="/tmp/rhce-killer-exams"
 
-# Copy exam files from the repo directory (mounted via cloud-init or downloaded)
-# For now, create minimal placeholders
-cat > /home/student/exams/exam-01/README.md <<'EOF'
-# RHCE Killer - Exam 01
+echo "Setting up exam files..."
 
-Exam files will be populated here.
-Check the project repository for full exam content.
-EOF
+# Create temporary directory for exam files
+mkdir -p "$LOCAL_REPO"
 
-cat > /home/student/exams/exam-01/START.sh <<'EOF'
+# Create exam directories
+for exam in exam-01 exam-02 exam-03 exam-04 exam-05; do
+  mkdir -p "$EXAMS_DIR/$exam"
+done
+
+# For testing: Create placeholder files that will be replaced via SCP after deployment
+# In production, these would be downloaded from GitHub
+for exam in exam-01 exam-02 exam-03 exam-04 exam-05; do
+  echo "Setting up $exam..."
+  
+  # Create placeholder README
+  cat > "$EXAMS_DIR/$exam/README.md" <<'EXAMREADME'
+# RHCE Killer Exam
+
+This exam file will be synced after deployment.
+
+To sync exam files manually:
+1. From your local machine, run: make sync-exams
+2. Or manually: scp -i rhce-killer.pem -r exam-* rocky@CONTROL_IP:/tmp/
+3. Then on control node: sudo cp -r /tmp/exam-* /home/student/exams/ && sudo chown -R student:student /home/student/exams/
+
+EXAMREADME
+  
+  # Create placeholder START.sh
+  cat > "$EXAMS_DIR/$exam/START.sh" <<'STARTSH'
 #!/bin/bash
-echo "Exam timer - implement your timer here"
-EOF
-
-cat > /home/student/exams/exam-01/grade.sh <<'EOF'
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  RHCE Killer - Exam Timer                                  ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Exam files need to be synced. Please run: make sync-exams"
+echo ""
+STARTSH
+  
+  # Create placeholder grade.sh
+  cat > "$EXAMS_DIR/$exam/grade.sh" <<'GRADESH'
 #!/bin/bash
-echo "Grading script - implement grading logic here"
-EOF
+echo "╔════════════════════════════════════════════════════════════╗"
+echo "║  RHCE Killer - Grading Script                              ║"
+echo "╚════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Exam files need to be synced. Please run: make sync-exams"
+echo ""
+GRADESH
+  
+  # Set permissions
+  chmod +x "$EXAMS_DIR/$exam"/*.sh
+done
 
-chmod +x /home/student/exams/exam-01/*.sh
-chown -R student:student /home/student/exams
+chown -R student:student "$EXAMS_DIR"
+echo "Exam directory structure created. Files will be synced after deployment."
 
 # ─────────────────────────────────────────────
 # MOTD — shown when you SSH into control
 # ─────────────────────────────────────────────
-cat > /etc/motd <<MOTD
+cat > /etc/motd <<'MOTD'
 ╔══════════════════════════════════════════════════════════════╗
 ║           RHCE KILLER — EX294 Practice Lab                   ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Control node  : control.example.com (10.0.1.10)            ║
-║  Managed node1 : node1.example.com   (${node1_ip})            ║
-║  Managed node2 : node2.example.com   (${node2_ip})            ║
+║  Managed nodes : node1, node2                                ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Exam workspace: ~/ansible/                                  ║
-║  Start exam    : cd ~/ansible && bash ~/exams/exam-01/START  ║
-║  Check score   : bash ~/exams/exam-01/grade.sh               ║
-║  Reset lab     : bash ~/reset-lab.sh                         ║
+║  📚 AVAILABLE EXAMS (Progressive Difficulty)                 ║
+╠══════════════════════════════════════════════════════════════╣
+║  Exam 01: Basic Ansible Tasks              (100 pts) ⭐      ║
+║    Start: bash ~/exams/exam-01/START.sh                      ║
+║    Grade: bash ~/exams/exam-01/grade.sh                      ║
+║                                                              ║
+║  Exam 02: Intermediate Tasks               (120 pts) ⭐⭐    ║
+║    Start: bash ~/exams/exam-02/START.sh                      ║
+║    Grade: bash ~/exams/exam-02/grade.sh                      ║
+║                                                              ║
+║  Exam 03: Roles & Collections              (120 pts) ⭐⭐⭐  ║
+║    Start: bash ~/exams/exam-03/START.sh                      ║
+║    Grade: bash ~/exams/exam-03/grade.sh                      ║
+║                                                              ║
+║  Exam 04: Linux Administration             (120 pts) ⭐⭐⭐  ║
+║    Start: bash ~/exams/exam-04/START.sh                      ║
+║    Grade: bash ~/exams/exam-04/grade.sh                      ║
+║                                                              ║
+║  Exam 05: Troubleshooting & Advanced       (150 pts) ⭐⭐⭐⭐║
+║    Start: bash ~/exams/exam-05/START.sh                      ║
+║    Grade: bash ~/exams/exam-05/grade.sh                      ║
+╠══════════════════════════════════════════════════════════════╣
+║  📖 Quick Reference                                          ║
+║    Workspace    : cd ~/ansible/                              ║
+║    List exams   : ls ~/exams/                                ║
+║    View exam    : cat ~/exams/exam-01/README.md | less       ║
+║    Ansible docs : ansible-doc <module_name>                  ║
+╠══════════════════════════════════════════════════════════════╣
+║  🎯 Recommended Study Path:                                  ║
+║    1. Start with Exam 01 (Basics)                            ║
+║    2. Progress to Exam 02 (Intermediate)                     ║
+║    3. Master Exam 03 (Roles & Collections)                   ║
+║    4. Complete Exam 04 (System Administration)               ║
+║    5. Challenge Exam 05 (Expert Level)                       ║
+║                                                              ║
+║  💡 Tip: Each exam has complete solutions in its README!     ║
 ╚══════════════════════════════════════════════════════════════╝
 MOTD
 
