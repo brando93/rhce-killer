@@ -201,56 +201,6 @@ Each exam mirrors the real EX294:
 4. **Complete Exam 04** - System administration with Ansible
 5. **Challenge Exam 05** - Expert-level troubleshooting and optimization
 
-### 📊 EX294 Objectives Coverage Matrix
-
-| Objective | Exam 01 | Exam 02 | Exam 03 | Exam 04 | Exam 05 | Coverage |
-|-----------|---------|---------|---------|---------|---------|----------|
-| **Core Components** | ✅✅✅ | ✅ | ✅ | ✅ | ✅✅ | 100% |
-| Inventory management | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ansible.cfg configuration | ✅ | ✅ | ✅ | ✅ | ✅✅ | ✅ |
-| Ad-hoc commands | ✅ | ✅ | | | ✅ | ✅ |
-| **Variables & Facts** | ✅✅ | ✅✅✅ | ✅✅ | ✅✅ | ✅✅ | 100% |
-| Variables (simple, complex) | ✅ | ✅✅ | ✅✅ | ✅ | ✅ | ✅ |
-| Facts (ansible_facts) | ✅ | ✅✅ | ✅ | ✅✅ | ✅ | ✅ |
-| Ansible Vault | ✅ | ✅✅ | | | | ✅ |
-| Magic variables | | | ✅ | ✅ | ✅✅✅ | ✅ |
-| **Task Control** | ✅✅ | ✅✅✅ | ✅✅ | ✅✅ | ✅✅ | 100% |
-| Loops (simple, complex) | ✅ | ✅✅✅ | ✅ | ✅ | ✅ | ✅ |
-| Conditionals (when) | ✅ | ✅✅✅ | ✅✅ | ✅✅ | ✅✅ | ✅ |
-| Handlers | ✅ | ✅✅ | ✅✅ | ✅ | ✅ | ✅ |
-| Tags | | ✅ | ✅✅ | ✅ | ✅✅✅ | ✅ |
-| **Files & Templates** | ✅✅ | ✅✅✅ | ✅✅ | ✅✅ | ✅ | 100% |
-| Jinja2 templates | ✅✅ | ✅✅✅ | ✅✅ | ✅ | ✅ | ✅ |
-| File modules | ✅ | ✅✅✅ | ✅ | ✅✅ | ✅ | ✅ |
-| **Roles** | | | ✅✅✅✅ | ✅✅ | ✅✅ | 100% |
-| Create roles | | | ✅✅✅ | ✅ | ✅ | ✅ |
-| Role dependencies | | | ✅✅ | | ✅ | ✅ |
-| Ansible Galaxy | | | ✅✅✅ | | | ✅ |
-| System roles | | | ✅✅ | ✅✅ | | ✅ |
-| **Collections** | | | ✅✅✅✅ | ✅ | ✅✅ | 100% |
-| Install collections | | | ✅✅ | | ✅ | ✅ |
-| Use collection modules | | ✅ | ✅✅✅ | ✅✅ | ✅✅ | ✅ |
-| Requirements file | | | ✅✅ | | | ✅ |
-| **Error Handling** | | ✅✅✅ | ✅ | ✅ | ✅✅ | 100% |
-| block/rescue/always | | ✅✅✅ | ✅ | ✅ | ✅✅ | ✅ |
-| ignore_errors | | ✅ | | | ✅ | ✅ |
-| failed_when | | ✅ | | | ✅✅ | ✅ |
-| **Advanced Topics** | | ✅ | ✅✅ | ✅✅ | ✅✅✅✅ | 100% |
-| Delegation | | | ✅ | | ✅✅✅ | ✅ |
-| Include vs Import | | | ✅ | | ✅✅✅ | ✅ |
-| Performance optimization | | | | | ✅✅✅ | ✅ |
-| Troubleshooting | | | | | ✅✅✅✅ | ✅ |
-| **System Administration** | ✅ | ✅ | | ✅✅✅✅ | ✅ | 100% |
-| User/group management | ✅ | ✅ | | ✅✅ | | ✅ |
-| Storage (LVM) | | | | ✅✅✅ | | ✅ |
-| Network configuration | | | | ✅✅ | | ✅ |
-| Firewall (firewalld) | ✅ | ✅ | ✅ | ✅✅ | ✅ | ✅ |
-| SELinux | | | | ✅✅✅ | | ✅ |
-| **OVERALL COVERAGE** | **45%** | **65%** | **75%** | **80%** | **90%** | **95%** |
-
-**Legend:** ✅ = Covered, ✅✅ = Emphasized, ✅✅✅ = Deep Focus, ✅✅✅✅ = Mastery Level
-
----
 
 ## Available commands
 
@@ -267,18 +217,6 @@ make ip-fix           # Update security group if your IP changed
 
 ---
 
-## Tips for the real exam
-
-1. **Read all tasks first** — do quick/high-value tasks first
-2. **ansible.cfg matters** — always verify `inventory` and `remote_user` are set
-3. **Test with `--check` and `--syntax-check`** before running
-4. **Vault password file** — always use `--vault-password-file`, never type it
-5. **Use `ansible-doc`** — it's available during the exam, use it
-6. **Tags save time** — `ansible-playbook site.yml --tags task06`
-7. **`ansible_memtotal_mb`** — remember for RAM conditionals
-8. **`password_hash('sha512')`** — required for user password tasks
-
----
 
 ## Structure
 
