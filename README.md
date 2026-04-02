@@ -1,8 +1,15 @@
 # RHCE Killer 🔴
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/brando93/rhce-killer.svg?style=social)](https://github.com/brando93/rhce-killer/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/brando93/rhce-killer.svg?style=social)](https://github.com/brando93/rhce-killer/network)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 > The hardest EX294 practice lab you'll find. If you pass this, you pass the real exam.
 
 Inspired by [killer.sh](https://killer.sh) for Kubernetes — but for the **Red Hat Certified Engineer (EX294) Ansible exam**.
+
+**⭐ Star this repo if you find it useful!**
 
 ## ⚠️ Important Disclaimers
 
