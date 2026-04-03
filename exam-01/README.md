@@ -94,6 +94,15 @@ Create a playbook `create-user.yml` that:
   (use the `password_hash` filter with `sha512`)
 - The playbook must be runnable with `--vault-password-file vault_pass.txt`
 
+**After completing this task**, configure your `ansible.cfg` to automatically use the vault password file:
+```bash
+cat >> ansible.cfg << 'EOF'
+vault_password_file = vault_pass.txt
+EOF
+```
+
+> 💡 **Important:** This configuration allows you to run all future ansible commands without needing to specify `--vault-password-file` every time. This is the recommended practice for the RHCE exam.
+
 ---
 
 ### Task 05 — Loops and conditionals (10 pts)
