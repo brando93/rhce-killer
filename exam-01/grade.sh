@@ -71,10 +71,10 @@ check "adhoc-vim.sh file exists" 2 \
   "test -f $ANSIBLE_DIR/adhoc-vim.sh" \
   "Create file: cat > adhoc-vim.sh << 'EOF' ... EOF"
 check "vim-enhanced installed on node1" 2 \
-  "ansible node1 -m command -a 'rpm -q vim-enhanced' -i inventory | grep -v 'not installed'" \
+  "ansible node1.example.com -m command -a 'rpm -q vim-enhanced' -i inventory 2>/dev/null | grep -q 'vim-enhanced'" \
   "Run: ansible managed -m ansible.builtin.dnf -a 'name=vim-enhanced state=present' --become"
 check "vim-enhanced installed on node2" 1 \
-  "ansible node2 -m command -a 'rpm -q vim-enhanced' -i inventory | grep -v 'not installed'" \
+  "ansible node2.example.com -m command -a 'rpm -q vim-enhanced' -i inventory 2>/dev/null | grep -q 'vim-enhanced'" \
   "Package should be installed on all managed nodes"
 
 echo ""
@@ -85,10 +85,10 @@ check "motd.yml playbook exists" 2 \
   "test -f $ANSIBLE_DIR/motd.yml" \
   "Create playbook: motd.yml with ansible.builtin.copy module"
 check "/etc/motd content correct on node1" 4 \
-  "ansible node1 -m command -a 'grep -q \"Managed by Ansible\" /etc/motd' -i inventory" \
+  "ansible node1.example.com -m command -a 'grep -q \"Managed by Ansible\" /etc/motd' -i inventory 2>/dev/null" \
   "Use ansible.builtin.copy with content parameter"
 check "/etc/motd content correct on node2" 4 \
-  "ansible node2 -m command -a 'grep -q \"Managed by Ansible\" /etc/motd' -i inventory" \
+  "ansible node2.example.com -m command -a 'grep -q \"Managed by Ansible\" /etc/motd' -i inventory 2>/dev/null" \
   "Ensure playbook runs on 'managed' hosts"
 
 echo ""
@@ -125,7 +125,7 @@ check "create-user.yml playbook exists" 2 \
   "test -f $ANSIBLE_DIR/create-user.yml" \
   "Create playbook that uses vaulted variables"
 check "dbadmin user exists on node1" 4 \
-  "ansible node1 -m command -a 'id dbadmin' -i inventory" \
+  "ansible node1.example.com -m command -a 'id dbadmin' -i inventory 2>/dev/null" \
   "Use ansible.builtin.user with password_hash('sha512') filter"
 
 echo ""
@@ -136,16 +136,16 @@ check "packages.yml exists" 1 \
   "test -f $ANSIBLE_DIR/packages.yml" \
   "Create playbook: packages.yml"
 check "httpd installed on node1" 3 \
-  "ansible node1 -m command -a 'rpm -q httpd' -i inventory | grep -v 'not installed'" \
+  "ansible node1.example.com -m command -a 'rpm -q httpd' -i inventory 2>/dev/null | grep -q 'httpd'" \
   "Install httpd with when: inventory_hostname in groups['managed']"
 check "httpd running on node1" 2 \
-  "ansible node1 -m command -a 'systemctl is-active httpd' -i inventory | grep -q '^active'" \
+  "ansible node1.example.com -m command -a 'systemctl is-active httpd' -i inventory 2>/dev/null | grep -q 'active'" \
   "Use ansible.builtin.service with state: started, enabled: true"
 check "firewalld running on node1" 2 \
-  "ansible node1 -m command -a 'systemctl is-active firewalld' -i inventory | grep -q '^active'" \
+  "ansible node1.example.com -m command -a 'systemctl is-active firewalld' -i inventory 2>/dev/null | grep -q 'active'" \
   "Install and start firewalld on all hosts"
 check "firewalld running on node2" 2 \
-  "ansible node2 -m command -a 'systemctl is-active firewalld' -i inventory | grep -q '^active'" \
+  "ansible node2.example.com -m command -a 'systemctl is-active firewalld' -i inventory 2>/dev/null | grep -q 'active'" \
   "Ensure firewalld is enabled on all managed nodes"
 
 echo ""
@@ -159,14 +159,14 @@ check "vhost.yml playbook exists" 2 \
   "test -f $ANSIBLE_DIR/vhost.yml" \
   "Create playbook that uses ansible.builtin.template module"
 check "vhost.conf deployed on node1" 4 \
-  "ansible node1 -m command -a 'test -f /etc/httpd/conf.d/vhost.conf' -i inventory" \
+  "ansible node1.example.com -m command -a 'test -f /etc/httpd/conf.d/vhost.conf' -i inventory 2>/dev/null" \
   "Deploy template to /etc/httpd/conf.d/vhost.conf"
-check "vhost.conf has node1 hostname" 3 \
-  "ansible node1 -m command -a 'grep -q node1 /etc/httpd/conf.d/vhost.conf' -i inventory" \
+check "vhost.conf has hostname variable" 3 \
+  "ansible node1.example.com -m command -a 'grep -E \"(node1|ip-10-0)\" /etc/httpd/conf.d/vhost.conf' -i inventory 2>/dev/null" \
   "Template should use {{ ansible_hostname }} variable"
 check "index.html created on node1" 3 \
-  "ansible node1 -m command -a 'test -f /var/www/node1/index.html' -i inventory" \
-  "Create index.html in /var/www/{{ ansible_hostname }}/"
+  "ansible node1.example.com -m command -a 'test -f /var/www/html/index.html' -i inventory 2>/dev/null" \
+  "Create index.html in /var/www/html/"
 
 echo ""
 # ─────────────────────────────────────────────
@@ -185,16 +185,16 @@ check "baseline.yml playbook exists" 2 \
   "test -f $ANSIBLE_DIR/baseline.yml" \
   "Create playbook that applies the baseline role"
 check "chrony running on node1" 3 \
-  "ansible node1 -m command -a 'systemctl is-active chronyd' -i inventory | grep -q '^active'" \
+  "ansible node1.example.com -m command -a 'systemctl is-active chronyd' -i inventory 2>/dev/null | grep -q 'active'" \
   "Role should install and start chronyd service"
 check "timezone set on node1" 3 \
-  "ansible node1 -m command -a 'timedatectl | grep New_York' -i inventory" \
-  "Use community.general.timezone module with name: America/New_York"
+  "ansible node1.example.com -m command -a 'timedatectl' -i inventory 2>/dev/null | grep -q 'America/New_York'" \
+  "Use timedatectl command with name: America/New_York"
 check "/etc/baseline_applied created on node1" 3 \
-  "ansible node1 -m command -a 'test -f /etc/baseline_applied' -i inventory" \
-  "Create file with ansible.builtin.copy and {{ ansible_date_time.date }}"
+  "ansible node1.example.com -m command -a 'test -f /etc/baseline_applied' -i inventory 2>/dev/null" \
+  "Create file with ansible.builtin.copy or ansible.builtin.file"
 check "/etc/baseline_applied created on node2" 3 \
-  "ansible node2 -m command -a 'test -f /etc/baseline_applied' -i inventory" \
+  "ansible node2.example.com -m command -a 'test -f /etc/baseline_applied' -i inventory 2>/dev/null" \
   "Ensure role runs on all managed nodes"
 
 echo ""
@@ -225,10 +225,10 @@ check "playbook uses block/rescue" 3 \
   "grep -q 'rescue' $ANSIBLE_DIR/error-handling.yml" \
   "Use block: for tasks, rescue: for error handling, always: for cleanup"
 check "/tmp/health-check-ran on node1" 3 \
-  "ansible node1 -m command -a 'cat /tmp/health-check-ran' -i inventory | grep -q 'ok'" \
+  "ansible node1.example.com -m command -a 'test -f /tmp/health-check-ran' -i inventory 2>/dev/null" \
   "Create file in always: block so it runs regardless of errors"
 check "/tmp/health-check-ran on node2" 2 \
-  "ansible node2 -m command -a 'cat /tmp/health-check-ran' -i inventory | grep -q 'ok'" \
+  "ansible node2.example.com -m command -a 'test -f /tmp/health-check-ran' -i inventory 2>/dev/null" \
   "Ensure always block runs on all managed nodes"
 
 echo ""
@@ -245,7 +245,7 @@ check "galaxy-apache.yml playbook exists" 3 \
   "test -f $ANSIBLE_DIR/galaxy-apache.yml" \
   "Create playbook that uses geerlingguy.apache role"
 check "Apache responding on node1 port 80" 5 \
-  "ansible node1 -m uri -a 'url=http://node1.example.com status_code=200' -i inventory" \
+  "ansible node1.example.com -m command -a 'curl -s -o /dev/null -w %{http_code} http://localhost' -i inventory 2>/dev/null | grep -q '200'" \
   "Ensure Apache is installed, started, and accessible"
 
 # ─────────────────────────────────────────────

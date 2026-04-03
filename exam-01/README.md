@@ -396,17 +396,28 @@ ansible-vault encrypt group_vars/all/secret.yml --vault-password-file vault_pass
 ansible-playbook create-user.yml --vault-password-file vault_pass.txt
 ```
 
+**Step 6:** Configure ansible.cfg to use vault password file automatically:
+
+```bash
+cat >> ansible.cfg << 'EOF'
+vault_password_file = vault_pass.txt
+EOF
+```
+
 **Explanation:**
 - Vault password file contains only the password string
 - `ansible-vault encrypt` encrypts the file
 - `password_hash('sha512')` filter creates hashed password
 - Playbook automatically reads encrypted vars from group_vars/all/
+- **After configuring ansible.cfg, you don't need to pass `--vault-password-file` anymore**
 
 **Verification:**
 ```bash
 ansible node1.example.com -m command -a "id dbadmin" -i inventory
-ansible-vault view group_vars/all/secret.yml --vault-password-file vault_pass.txt
+ansible-vault view group_vars/all/secret.yml
 ```
+
+**Note:** From this point forward, all ansible commands will automatically use the vault password file configured in ansible.cfg.
 
 ---
 
@@ -593,8 +604,9 @@ ansible-galaxy init roles/baseline
   tags: baseline
 
 - name: Set timezone to America/New_York
-  community.general.timezone:
-    name: America/New_York
+  ansible.builtin.command:
+    cmd: timedatectl set-timezone America/New_York
+  changed_when: false
   tags: baseline
 
 - name: Create baseline_applied file
@@ -632,7 +644,8 @@ ansible-playbook baseline.yml --tags baseline
 **Explanation:**
 - `ansible-galaxy init` creates role directory structure
 - All tasks in role have `tags: baseline`
-- `community.general.timezone` module requires community.general collection
+- `timedatectl set-timezone` command sets the system timezone
+- `changed_when: false` prevents the task from always showing as changed
 - Role is applied using `roles:` section in playbook
 
 **Verification:**
@@ -741,9 +754,9 @@ ansible node2.example.com -m command -a "df -h /mnt/tmpbind" -i inventory
 
       always:
         - name: Always create health-check-ran file
-          ansible.builtin.copy:
-            content: "ok\n"
-            dest: /tmp/health-check-ran
+          ansible.builtin.file:
+            path: /tmp/health-check-ran
+            state: touch
             mode: '0644'
 ```
 
@@ -756,6 +769,7 @@ ansible-playbook error-handling.yml
 - `block:` groups tasks that might fail
 - `rescue:` runs only if block tasks fail
 - `always:` runs regardless of success or failure
+- `state: touch` creates the file if it doesn't exist, or updates timestamp if it does
 - No `ignore_errors` needed because rescue handles the failure
 
 **Verification:**
