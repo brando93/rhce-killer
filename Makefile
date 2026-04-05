@@ -56,7 +56,7 @@ up:
 	@echo "  3. Start practicing:"
 	@echo "     → bash ~/exams/exam-01/START.sh"
 	@echo ""
-	@echo "💡 Tip: Run 'make bootstrap-status' in 2-3 minutes"
+	@echo "💡 Tip: Run 'rhce bootstrap-status' in 2-3 minutes"
 	@echo ""
 
 bootstrap-status:
@@ -66,7 +66,7 @@ bootstrap-status:
 	@echo ""
 	@CONTROL_IP=$$(cd $(TF_DIR) && terraform output -raw control_public_ip 2>/dev/null); \
 	if [ -z "$$CONTROL_IP" ]; then \
-		echo "❌ Lab not running. Run 'make up' first."; \
+		echo "❌ Lab not running. Run 'rhce up' first."; \
 		exit 1; \
 	fi; \
 	if ssh -i $(KEY_FILE) -o StrictHostKeyChecking=no -o ConnectTimeout=5 rocky@$$CONTROL_IP \
@@ -150,7 +150,7 @@ sync-exams:
 	@echo ""
 	@CONTROL_IP=$$(cd $(TF_DIR) && terraform output -raw control_public_ip 2>/dev/null); \
 	if [ -z "$$CONTROL_IP" ]; then \
-		echo "❌ Lab not running. Run 'make up' first."; \
+		echo "❌ Lab not running. Run 'rhce up' first."; \
 		exit 1; \
 	fi; \
 	echo "📦 Copying exam files to control node..."; \
@@ -199,5 +199,5 @@ sync-exams:
 	echo ""; \
 	echo "📚 Your workspace: ~/ansible/"; \
 	echo ""; \
-	echo "🚀 Good luck! Remember: make destroy when done to stop billing"; \
+	echo "🚀 Good luck! Remember: rhce destroy when done to stop billing"; \
 	echo ""

@@ -223,6 +223,7 @@ resource "aws_instance" "control" {
     node1_ip    = "10.0.2.11"
     node2_ip    = "10.0.2.12"
     private_key = tls_private_key.rhce.private_key_pem
+    public_key  = tls_private_key.rhce.public_key_openssh
   })
 
   tags = { Name = "control.example.com", Role = "control" }

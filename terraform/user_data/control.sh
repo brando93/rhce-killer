@@ -61,6 +61,14 @@ chown -R student:student /home/student/.ssh
 # Generate public key from private key
 su - student -c "ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub"
 
+# Add the public key to authorized_keys so we can SSH as student from local machine
+cat > /home/student/.ssh/authorized_keys <<'AUTHKEY'
+${public_key}
+AUTHKEY
+
+chmod 600 /home/student/.ssh/authorized_keys
+chown student:student /home/student/.ssh/authorized_keys
+
 # SSH client config — no host key checking for lab nodes
 cat > /home/student/.ssh/config <<EOF
 Host node1 node1.example.com ${node1_ip}
