@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# RHCE Killer - Exam 06 Grading Script
+# RHCE Killer - Variables and Facts Grading Script
 # Magic Variables, Facts & Conditionals Mastery
 #
 
-EXAM_NAME="Exam 06: Magic Variables, Facts & Conditionals"
+EXAM_NAME="Variables and Facts: Magic Variables, Facts & Conditionals"
 TOTAL_POINTS=200
 PASSING_SCORE=140
 
@@ -47,7 +47,7 @@ check() {
 clear
 
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║${NC}  ${GREEN}RHCE Killer${NC} — Exam 06 Grading                           ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ${GREEN}RHCE Killer${NC} — Variables and Facts Grading               ${CYAN}║${NC}"
 echo -e "${CYAN}║${NC}  ${YELLOW}Magic Variables, Facts & Conditionals${NC}                    ${CYAN}║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
@@ -463,7 +463,7 @@ else
     echo -e "${CYAN}💡 Tips:${NC}"
     echo -e "   • Use ${GREEN}ansible hostname -m setup${NC} to explore facts"
     echo -e "   • Test conditionals with ${GREEN}debug${NC} module first"
-    echo -e "   • Review solutions in ${GREEN}~/exams/exam-06/README.md${NC}"
+    echo -e "   • Review solutions in ${GREEN}~/exams/variables-and-facts/README.md${NC}"
     echo -e "   • Practice each task individually"
 fi
 
@@ -472,6 +472,6 @@ echo -e "${CYAN}═════════════════════�
 echo ""
 
 # Clean up timer if exam is complete
-rm -f "$HOME/.exam06_timer" 2>/dev/null
+rm -f "$HOME/.variables_and_facts_timer" 2>/dev/null
 
 # Made with Bob

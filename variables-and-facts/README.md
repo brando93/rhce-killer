@@ -1,4 +1,4 @@
-# RHCE Killer — Practice Exam 06
+# RHCE Killer — Variables and Facts
 ## EX294: Magic Variables, Facts & Conditionals Mastery
 
 ---
@@ -276,7 +276,7 @@ Create a playbook `custom-status.yml` that:
 ## When you finish
 
 ```bash
-bash /home/student/exams/exam-06/grade.sh
+bash /home/student/exams/variables-and-facts/grade.sh
 ```
 
 ---

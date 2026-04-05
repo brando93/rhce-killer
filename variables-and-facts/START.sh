@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# RHCE Killer - Exam 06 Timer
+# RHCE Killer - Variables and Facts Timer
 # Magic Variables, Facts & Conditionals Mastery
 #
 
-EXAM_NAME="Exam 06: Magic Variables, Facts & Conditionals"
+EXAM_NAME="Variables and Facts: Magic Variables, Facts & Conditionals"
 EXAM_DURATION=180  # 3 hours in minutes
-EXAM_DIR="$HOME/exams/exam-06"
-TIMER_FILE="$HOME/.exam06_timer"
+EXAM_DIR="$HOME/exams/variables-and-facts"
+TIMER_FILE="$HOME/.variables_and_facts_timer"
 
 # Colors
 RED='\033[0;31m'
@@ -21,7 +21,7 @@ NC='\033[0m' # No Color
 clear
 
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║${NC}  ${GREEN}RHCE Killer${NC} — Practice Exam 06                          ${CYAN}║${NC}"
+echo -e "${CYAN}║${NC}  ${GREEN}RHCE Killer${NC} — Variables and Facts                       ${CYAN}║${NC}"
 echo -e "${CYAN}║${NC}  ${YELLOW}Magic Variables, Facts & Conditionals Mastery${NC}            ${CYAN}║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
@@ -38,7 +38,7 @@ if [ -f "$TIMER_FILE" ]; then
         echo -e "${RED}⏰ Time's up! Your exam time has expired.${NC}"
         echo ""
         echo -e "${YELLOW}📊 Grade your work:${NC}"
-        echo -e "   ${GREEN}bash ~/exams/exam-06/grade.sh${NC}"
+        echo -e "   ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC}"
         echo ""
         rm -f "$TIMER_FILE"
         exit 0
@@ -51,8 +51,8 @@ if [ -f "$TIMER_FILE" ]; then
     echo -e "   Remaining: ${GREEN}${REMAINING} minutes${NC}"
     echo ""
     echo -e "${CYAN}💡 Commands:${NC}"
-    echo -e "   ${GREEN}cat ~/exams/exam-06/README.md | less${NC}  → View instructions"
-    echo -e "   ${GREEN}bash ~/exams/exam-06/grade.sh${NC}         → Grade your work"
+    echo -e "   ${GREEN}cat ~/exams/variables-and-facts/README.md | less${NC}  → View instructions"
+    echo -e "   ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC}         → Grade your work"
     echo ""
     exit 0
 fi
@@ -82,11 +82,11 @@ echo -e "   ${GREEN}cd ~/ansible/${NC}"
 echo ""
 
 echo -e "${BLUE}📖 View Instructions:${NC}"
-echo -e "   ${GREEN}cat ~/exams/exam-06/README.md | less${NC}"
+echo -e "   ${GREEN}cat ~/exams/variables-and-facts/README.md | less${NC}"
 echo ""
 
 echo -e "${BLUE}📊 Grade Your Work:${NC}"
-echo -e "   ${GREEN}bash ~/exams/exam-06/grade.sh${NC}"
+echo -e "   ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC}"
 echo ""
 
 echo -e "${YELLOW}⚠️  Important Rules:${NC}"
@@ -133,9 +133,9 @@ echo -e "${CYAN}⏰ Exam Ends:${NC} $(date -d "+${EXAM_DURATION} minutes" '+%Y-%
 echo ""
 echo -e "${YELLOW}📋 Quick Start:${NC}"
 echo -e "   1. ${GREEN}cd ~/ansible/${NC}"
-echo -e "   2. ${GREEN}cat ~/exams/exam-06/README.md | less${NC}"
-echo -e "   3. Start with Task 01 and work through sequentially"
-echo -e "   4. ${GREEN}bash ~/exams/exam-06/grade.sh${NC} when done"
+echo -e "   2. ${GREEN}cat ~/exams/variables-and-facts/README.md | less${NC}"
+    echo -e "   3. Start with Task 01 and work through sequentially"
+    echo -e "   4. ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC} when done"
 echo ""
 echo -e "${MAGENTA}💡 Remember:${NC}"
 echo -e "   • ${GREEN}ansible node1.example.com -m setup${NC} → See all facts"
@@ -163,12 +163,12 @@ if [ -f "$TIMER_FILE" ]; then
     REMAINING=$((180 - ELAPSED_MIN))
     
     if [ $REMAINING -le 0 ]; then
-        echo "⏰ EXAM TIME EXPIRED! Grade your work: bash ~/exams/exam-06/grade.sh"
+        echo "⏰ EXAM TIME EXPIRED! Grade your work: bash ~/exams/variables-and-facts/grade.sh"
         rm -f "$TIMER_FILE"
     else
         HOURS=$((REMAINING / 60))
         MINS=$((REMAINING % 60))
-        echo "⏰ Exam 06 - Time remaining: ${HOURS}h ${MINS}m"
+        echo "⏰ Variables and Facts - Time remaining: ${HOURS}h ${MINS}m"
     fi
 fi
 EOF
