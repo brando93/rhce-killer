@@ -30,9 +30,9 @@ This project is for **educational purposes only**. To earn the RHCE certificatio
 ## What's included
 
 - **Terraform lab** — 3 EC2 instances on AWS (Rocky Linux 9), spun up in 1 command
-- **5 comprehensive mock exams** — 50 tasks total, progressive difficulty from basic to expert
+- **21 comprehensive exams** — Two learning paths with 290+ tasks total
 - **Auto-grader** — tells you your exact score and which tasks failed (340+ validation checks)
-- **4-hour timer** — simulates real exam pressure
+- **Flexible timers** — 2-4 hour exams depending on complexity
 - **Complete solutions** — every task has step-by-step solutions with full code
 - **95% EX294 coverage** — all exam objectives thoroughly covered
 
@@ -90,28 +90,31 @@ sudo su - student
 cd ~/ansible
 ansible all -m ping
 
-# 7. List available exams
-ls ~/exams/
+# 7. List available exams (two paths)
+ls ~/exams/complete/      # Path A: Complete exams
+ls ~/exams/thematic/      # Path B: Thematic exams
 
-# 8. Start with Exam 01 (recommended for beginners)
-bash ~/exams/exam-01/START.sh
+# 8. Choose your path and start
+# Path A (Real exam simulation):
+bash ~/exams/complete/exam-01/START.sh
+
+# Path B (Learn by topic):
+bash ~/exams/thematic/inventory-basics/START.sh
 
 # 9. Read the tasks
-cat ~/exams/exam-01/README.md | less
+cat ~/exams/complete/exam-01/README.md | less
 
 # 10. Work from your ansible directory
 cd ~/ansible
 
 # 11. Grade yourself when done
-bash ~/exams/exam-01/grade.sh
+bash ~/exams/complete/exam-01/grade.sh
 
-# 12. Try other exams (progressive difficulty)
-# bash ~/exams/exam-02/START.sh  # Intermediate
-# bash ~/exams/exam-03/START.sh  # Roles & Collections
-# bash ~/exams/exam-04/START.sh  # Linux Administration
-# bash ~/exams/exam-05/START.sh  # Expert Level
+# 12. Continue with other exams
+# Path A: exam-02, exam-03, exam-04, exam-05
+# Path B: playbooks-fundamentals, variables-and-facts, etc.
 
-# 11. DESTROY the lab when done (stop billing!)
+# 13. DESTROY the lab when done (stop billing!)
 exit
 exit
 make destroy
@@ -174,32 +177,104 @@ All nodes run **Rocky Linux 9** — binary compatible with RHEL 9 (what the exam
 
 ---
 
-## Exam structure
+## Two Learning Paths
 
-Each exam mirrors the real EX294:
-- **4 hours** — timer included
-- **No internet access** during exam (honor system)
-- **Tasks scored independently** — partial credit NOT given (same as real exam)
-- **Passing threshold: 70%**
+Choose your learning style:
 
-### 📚 Available Exams (Progressive Difficulty)
+### 📚 Path A: Complete Exams (Real Exam Simulation)
 
-| Exam | Focus | Tasks | Points | Difficulty | Status |
-|------|-------|-------|--------|------------|--------|
-| **Exam 01** | Basic Ansible Tasks | 10 | 100 | ⭐ Beginner | ✅ Complete |
-| **Exam 02** | Intermediate Tasks | 10 | 120 | ⭐⭐ Intermediate | ✅ Complete |
-| **Exam 03** | Roles & Collections | 10 | 120 | ⭐⭐⭐ Advanced | ✅ Complete |
-| **Exam 04** | Linux Administration | 10 | 120 | ⭐⭐⭐ Advanced | ✅ Complete |
-| **Exam 05** | Troubleshooting & Advanced | 10 | 150 | ⭐⭐⭐⭐ Expert | ✅ Complete |
-| **TOTAL** | | **50** | **610** | | |
+Perfect for final exam preparation. Each exam covers multiple topics mixed together, just like the real EX294.
 
-### 🎯 Recommended Study Path
+| Exam | Focus | Tasks | Points | Duration | Difficulty | Status |
+|------|-------|-------|--------|----------|------------|--------|
+| **Exam 01** | Basic Ansible Tasks | 10 | 100 | 4h | ⭐ Beginner | ✅ Complete |
+| **Exam 02** | Intermediate Tasks | 10 | 120 | 4h | ⭐⭐ Intermediate | ✅ Complete |
+| **Exam 03** | Roles & Collections | 10 | 120 | 4h | ⭐⭐⭐ Advanced | ✅ Complete |
+| **Exam 04** | Linux Administration | 10 | 120 | 4h | ⭐⭐⭐ Advanced | ✅ Complete |
+| **Exam 05** | Troubleshooting & Advanced | 10 | 150 | 4h | ⭐⭐⭐⭐ Expert | ✅ Complete |
+| **TOTAL** | | **50** | **610** | **20h** | | |
 
-1. **Start with Exam 01** - Master the basics (inventory, playbooks, modules, variables)
-2. **Progress to Exam 02** - Learn intermediate concepts (loops, conditionals, handlers, vault)
-3. **Master Exam 03** - Deep dive into roles and collections
-4. **Complete Exam 04** - System administration with Ansible
-5. **Challenge Exam 05** - Expert-level troubleshooting and optimization
+**Location:** `~/exams/complete/exam-01/` through `exam-05/`
+
+---
+
+### 🎓 Path B: Thematic Exams (Deep Learning by Topic)
+
+Perfect for learning and mastering specific Ansible concepts. Each exam focuses on one topic with 15-20 exercises.
+
+#### Fundamentals (3 exams)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Inventory Basics** | 120 | 2h | 15 |
+| **Playbooks Fundamentals** | 155 | 2.5h | 15 |
+| **Variables and Facts** | 200 | 3h | 20 |
+
+#### Logic & Control (3 exams)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Conditionals and When** | 187 | 2.5h | 17 |
+| **Loops and Iteration** | 207 | 2.5h | 18 |
+| **Blocks and Error Handling** | 215 | 2.5h | 18 |
+
+#### Templates (2 exams)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Jinja2 Basics** | 286 | 3h | 20 |
+| **Jinja2 Advanced** | 366 | 3.5h | 20 |
+
+#### Security (2 exams)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Ansible Vault** | 213 | 2.5h | 18 |
+| **SSH and Privilege Escalation** | 215 | 2.5h | 18 |
+
+#### Roles (3 exams)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Roles Basics** | 263 | 3h | 18 |
+| **Roles Advanced** | 436 | 3.5h | 20 |
+| **Collections and Galaxy** | 214 | 2.5h | 18 |
+
+#### Optimization (3 exams)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Debugging and Troubleshooting** | 240 | 2.5h | 18 |
+| **Performance Optimization** | 244 | 2.5h | 18 |
+| **System Administration** | 289 | 3h | 20 |
+
+**Thematic Total:** 16 exams, 3,645 points, ~45 hours, 273 exercises
+
+**Location:** `~/exams/thematic/inventory-basics/` through `system-administration/`
+
+---
+
+### 🎯 Recommended Study Paths
+
+**For Beginners (New to Ansible):**
+1. Start with Path B (Thematic) - Learn concepts one at a time
+2. Follow this order: Fundamentals → Logic & Control → Templates → Security → Roles → Optimization
+3. Then practice with Path A (Complete) for exam simulation
+
+**For Intermediate Users (Some Ansible Experience):**
+1. Take Exam 01 (Path A) to assess your level
+2. Use Path B (Thematic) to strengthen weak areas
+3. Complete remaining Path A exams for full simulation
+
+**For Advanced Users (Preparing for Exam):**
+1. Complete all Path A exams under timed conditions
+2. Use Path B (Thematic) to drill specific topics where you scored low
+3. Retake Path A exams until consistently scoring 90%+
+
+---
+
+### 📊 Combined Statistics
+
+- **Total Exams:** 21 (5 complete + 16 thematic)
+- **Total Tasks:** ~290 exercises
+- **Total Points:** 4,255 points
+- **Total Practice Time:** ~65 hours
+- **Validation Checks:** 340+ automated checks
+- **EX294 Coverage:** 95%+ of all exam objectives
 
 
 ## Available commands
@@ -230,31 +305,56 @@ rhce-killer/
 │   └── user_data/
 │       ├── control.sh          # Bootstrap: Ansible, SSH keys, all exams
 │       └── node.sh             # Bootstrap: Python, sudo
-├── exam-01/                    # ⭐ Basic Ansible Tasks (100 pts)
+│
+├── PATH A: Complete Exams (Real Exam Simulation)
+├── exam-01/                    # ⭐ Basic Ansible Tasks (100 pts, 4h)
 │   ├── README.md               # 10 tasks + complete solutions
 │   ├── START.sh                # 4-hour timer
 │   └── grade.sh                # 40+ validation checks
-├── exam-02/                    # ⭐⭐ Intermediate Tasks (120 pts)
+├── exam-02/                    # ⭐⭐ Intermediate Tasks (120 pts, 4h)
 │   ├── README.md               # 10 tasks + complete solutions
 │   ├── START.sh                # 4-hour timer
 │   └── grade.sh                # 60+ validation checks
-├── exam-03/                    # ⭐⭐⭐ Roles & Collections (120 pts)
+├── exam-03/                    # ⭐⭐⭐ Roles & Collections (120 pts, 4h)
 │   ├── README.md               # 10 tasks + complete solutions
 │   ├── START.sh                # 4-hour timer
 │   └── grade.sh                # 70+ validation checks
-├── exam-04/                    # ⭐⭐⭐ Linux Administration (120 pts)
+├── exam-04/                    # ⭐⭐⭐ Linux Administration (120 pts, 4h)
 │   ├── README.md               # 10 tasks + complete solutions
 │   ├── START.sh                # 4-hour timer
 │   └── grade.sh                # 80+ validation checks
-├── exam-05/                    # ⭐⭐⭐⭐ Troubleshooting (150 pts)
+├── exam-05/                    # ⭐⭐⭐⭐ Troubleshooting (150 pts, 4h)
 │   ├── README.md               # 10 tasks + complete solutions
 │   ├── START.sh                # 4-hour timer
 │   └── grade.sh                # 90+ validation checks
+│
+├── PATH B: Thematic Exams (Deep Learning by Topic)
+├── inventory-basics/           # Fundamentals (120 pts, 2h)
+├── playbooks-fundamentals/     # Fundamentals (155 pts, 2.5h)
+├── variables-and-facts/        # Fundamentals (200 pts, 3h)
+├── conditionals-and-when/      # Logic & Control (187 pts, 2.5h)
+├── loops-and-iteration/        # Logic & Control (207 pts, 2.5h)
+├── blocks-and-error-handling/  # Logic & Control (215 pts, 2.5h)
+├── jinja2-basics/              # Templates (286 pts, 3h)
+├── jinja2-advanced/            # Templates (366 pts, 3.5h)
+├── ansible-vault/              # Security (213 pts, 2.5h)
+├── ssh-and-privilege/          # Security (215 pts, 2.5h)
+├── roles-basics/               # Roles (263 pts, 3h)
+├── roles-advanced/             # Roles (436 pts, 3.5h)
+├── collections-and-galaxy/     # Roles (214 pts, 2.5h)
+├── debugging-and-troubleshooting/  # Optimization (240 pts, 2.5h)
+├── performance-optimization/   # Optimization (244 pts, 2.5h)
+├── system-administration/      # Optimization (289 pts, 3h)
+│   └── Each contains:
+│       ├── README.md           # 15-20 exercises + solutions
+│       ├── START.sh            # Timed exam (2-3.5h)
+│       └── grade.sh            # Automated validation
+│
 └── verification/
     └── reset-lab.sh            # Clean slate between attempts
 ```
 
-**Total:** 50 tasks, 610 points, 340+ automated validation checks, 95% EX294 coverage
+**Total:** 21 exams, ~290 tasks, 4,255 points, 340+ automated validation checks, 95% EX294 coverage
 
 ---
 

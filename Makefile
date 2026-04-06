@@ -6,17 +6,21 @@ KEY_FILE := rhce-killer.pem
 
 help:
 	@echo ""
-	@echo "  RHCE Killer — EX294 Lab"
+	@echo "  RHCE Killer — EX294 Lab (21 Exams Available)"
 	@echo ""
 	@echo "  make up               — spin up 3 EC2 instances (detects your IP)"
 	@echo "  make bootstrap-status — check if bootstrap is complete"
-	@echo "  make sync-exams       — sync all exam files to control node"
+	@echo "  make sync-exams       — sync all 21 exam files to control node"
 	@echo "  make ssh              — SSH into control node as rocky"
 	@echo "  make ssh-student      — SSH into control node as student"
 	@echo "  make destroy          — destroy all resources (stop billing)"
 	@echo "  make status           — show IPs"
 	@echo "  make debug            — tail bootstrap log on control node"
 	@echo "  make ip-fix           — update SG if your IP changed"
+	@echo ""
+	@echo "  📚 Two Learning Paths:"
+	@echo "     Path A: 5 complete exams (real exam simulation)"
+	@echo "     Path B: 16 thematic exams (deep learning by topic)"
 	@echo ""
 
 up:
@@ -154,50 +158,85 @@ sync-exams:
 		exit 1; \
 	fi; \
 	echo "📦 Copying exam files to control node..."; \
+	echo "   → Complete exams (exam-01 to exam-05)"; \
 	scp -i $(KEY_FILE) -o StrictHostKeyChecking=no -r exam-01 exam-02 exam-03 exam-04 exam-05 rocky@$$CONTROL_IP:/tmp/ 2>/dev/null; \
+	echo "   → Thematic exams (16 topic-focused exams)"; \
+	scp -i $(KEY_FILE) -o StrictHostKeyChecking=no -r \
+		inventory-basics playbooks-fundamentals variables-and-facts \
+		conditionals-and-when loops-and-iteration blocks-and-error-handling \
+		jinja2-basics jinja2-advanced ansible-vault ssh-and-privilege \
+		roles-basics roles-advanced collections-and-galaxy \
+		debugging-and-troubleshooting performance-optimization system-administration \
+		rocky@$$CONTROL_IP:/tmp/ 2>/dev/null; \
 	echo "📥 Installing exam files..."; \
 	ssh -i $(KEY_FILE) -o StrictHostKeyChecking=no rocky@$$CONTROL_IP \
 		"sudo rm -rf /home/student/exams/* && \
-		 sudo cp -r /tmp/exam-* /home/student/exams/ && \
+		 sudo mkdir -p /home/student/exams/complete /home/student/exams/thematic && \
+		 sudo cp -r /tmp/exam-* /home/student/exams/complete/ && \
+		 sudo cp -r /tmp/inventory-* /tmp/playbooks-* /tmp/variables-* \
+		           /tmp/conditionals-* /tmp/loops-* /tmp/blocks-* \
+		           /tmp/jinja2-* /tmp/ansible-vault /tmp/ssh-* \
+		           /tmp/roles-* /tmp/collections-* \
+		           /tmp/debugging-* /tmp/performance-* /tmp/system-* \
+		           /home/student/exams/thematic/ 2>/dev/null; \
 		 sudo chown -R student:student /home/student/exams/ && \
-		 sudo chmod +x /home/student/exams/*/*.sh && \
-		 sudo rm -rf /tmp/exam-*" 2>/dev/null; \
+		 sudo chmod +x /home/student/exams/*/*.sh /home/student/exams/*/*/*.sh && \
+		 sudo rm -rf /tmp/exam-* /tmp/inventory-* /tmp/playbooks-* /tmp/variables-* \
+		            /tmp/conditionals-* /tmp/loops-* /tmp/blocks-* \
+		            /tmp/jinja2-* /tmp/ansible-vault /tmp/ssh-* \
+		            /tmp/roles-* /tmp/collections-* \
+		            /tmp/debugging-* /tmp/performance-* /tmp/system-*" 2>/dev/null; \
 	echo ""; \
-	echo "✅ All exam files synced successfully!"; \
+	echo "✅ All 21 exam files synced successfully!"; \
 	echo ""; \
 	echo "╔════════════════════════════════════════════════════════════╗"; \
-	echo "║  🎯 Ready to Start! Here's What to Do:                     ║"; \
+	echo "║  🎯 Ready to Start! Two Learning Paths Available:         ║"; \
 	echo "╚════════════════════════════════════════════════════════════╝"; \
 	echo ""; \
-	echo "1️⃣  SSH into the lab:"; \
-	echo "    make ssh-student"; \
+	echo "📚 PATH A: Complete Exams (Real Exam Simulation)"; \
+	echo "   Location: ~/exams/complete/"; \
+	echo "   • exam-01 (⭐ Basic - 100 pts, 4h)"; \
+	echo "   • exam-02 (⭐⭐ Intermediate - 120 pts, 4h)"; \
+	echo "   • exam-03 (⭐⭐⭐ Roles & Collections - 120 pts, 4h)"; \
+	echo "   • exam-04 (⭐⭐⭐ Linux Admin - 120 pts, 4h)"; \
+	echo "   • exam-05 (⭐⭐⭐⭐ Troubleshooting - 150 pts, 4h)"; \
 	echo ""; \
-	echo "2️⃣  View available exams:"; \
-	echo "    ls ~/exams/"; \
+	echo "🎓 PATH B: Thematic Exams (Deep Learning by Topic)"; \
+	echo "   Location: ~/exams/thematic/"; \
+	echo "   Fundamentals:"; \
+	echo "   • inventory-basics (120 pts, 2h)"; \
+	echo "   • playbooks-fundamentals (155 pts, 2.5h)"; \
+	echo "   • variables-and-facts (200 pts, 3h)"; \
+	echo "   Logic & Control:"; \
+	echo "   • conditionals-and-when (187 pts, 2.5h)"; \
+	echo "   • loops-and-iteration (207 pts, 2.5h)"; \
+	echo "   • blocks-and-error-handling (215 pts, 2.5h)"; \
+	echo "   Templates:"; \
+	echo "   • jinja2-basics (286 pts, 3h)"; \
+	echo "   • jinja2-advanced (366 pts, 3.5h)"; \
+	echo "   Security:"; \
+	echo "   • ansible-vault (213 pts, 2.5h)"; \
+	echo "   • ssh-and-privilege (215 pts, 2.5h)"; \
+	echo "   Roles:"; \
+	echo "   • roles-basics (263 pts, 3h)"; \
+	echo "   • roles-advanced (436 pts, 3.5h)"; \
+	echo "   • collections-and-galaxy (214 pts, 2.5h)"; \
+	echo "   Optimization:"; \
+	echo "   • debugging-and-troubleshooting (240 pts, 2.5h)"; \
+	echo "   • performance-optimization (244 pts, 2.5h)"; \
+	echo "   • system-administration (289 pts, 3h)"; \
 	echo ""; \
-	echo "    You'll see:"; \
-	echo "    • exam-01 (⭐ Basic - 100 pts)"; \
-	echo "    • exam-02 (⭐⭐ Intermediate - 120 pts)"; \
-	echo "    • exam-03 (⭐⭐⭐ Roles & Collections - 120 pts)"; \
-	echo "    • exam-04 (⭐⭐⭐ Linux Admin - 120 pts)"; \
-	echo "    • exam-05 (⭐⭐⭐⭐ Troubleshooting - 150 pts)"; \
+	echo "🚀 Quick Start:"; \
+	echo "   1. SSH: make ssh-student"; \
+	echo "   2. List: ls ~/exams/complete/ ~/exams/thematic/"; \
+	echo "   3. Start: bash ~/exams/complete/exam-01/START.sh"; \
+	echo "   4. Grade: bash ~/exams/complete/exam-01/grade.sh"; \
 	echo ""; \
-	echo "3️⃣  Read exam instructions:"; \
-	echo "    cat ~/exams/exam-01/README.md | less"; \
-	echo ""; \
-	echo "4️⃣  Start the exam (4-hour timer):"; \
-	echo "    bash ~/exams/exam-01/START.sh"; \
-	echo ""; \
-	echo "5️⃣  Grade your work:"; \
-	echo "    bash ~/exams/exam-01/grade.sh"; \
-	echo ""; \
-	echo "💡 Tips:"; \
-	echo "   • Start with exam-01 if you're new to Ansible"; \
-	echo "   • Each exam has complete solutions in the README"; \
-	echo "   • Use 'ansible-doc <module>' for help"; \
-	echo "   • The grading script gives specific hints"; \
+	echo "💡 Recommendation:"; \
+	echo "   • New to Ansible? Start with Path B (thematic)"; \
+	echo "   • Preparing for exam? Use Path A (complete)"; \
+	echo "   • Need practice on specific topics? Use Path B"; \
 	echo ""; \
 	echo "📚 Your workspace: ~/ansible/"; \
-	echo ""; \
-	echo "🚀 Good luck! Remember: rhce destroy when done to stop billing"; \
+	echo "🚀 Remember: make destroy when done to stop billing"; \
 	echo ""
