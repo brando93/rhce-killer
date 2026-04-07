@@ -99,19 +99,21 @@ Create a playbook `/home/student/ansible/manage-services.yml` that:
 
 Create a playbook `/home/student/ansible/create-users.yml` that:
 - Runs on **all managed nodes**
-- Creates a group named `developers` with GID `3000`
-- Creates a user named `devuser` with:
-  - UID: `3001`
-  - Primary group: `developers`
-  - Home directory: `/home/devuser`
+- Creates a group named `webadmins` with GID `4000`
+- Creates a user named `webadmin` with:
+  - UID: `4001`
+  - Primary group: `webadmins`
+  - Home directory: `/home/webadmin`
   - Shell: `/bin/bash`
-  - Comment: "Development User"
+  - Comment: "Web Administrator"
 
 **Requirements:**
 - Use `group` module for group creation
 - Use `user` module for user creation
 - Use privilege escalation
 - Group must be created before user
+
+**Note:** The system already has `devuser` (UID 3001) and `developers` group (GID 3000) pre-created for other exercises.
 
 ---
 
@@ -446,20 +448,20 @@ ansible all -m command -a "systemctl status httpd" --become
   become: true
   
   tasks:
-    - name: Create developers group
+    - name: Create webadmins group
       ansible.builtin.group:
-        name: developers
-        gid: 3000
+        name: webadmins
+        gid: 4000
         state: present
     
-    - name: Create devuser
+    - name: Create webadmin user
       ansible.builtin.user:
-        name: devuser
-        uid: 3001
-        group: developers
-        home: /home/devuser
+        name: webadmin
+        uid: 4001
+        group: webadmins
+        home: /home/webadmin
         shell: /bin/bash
-        comment: "Development User"
+        comment: "Web Administrator"
         state: present
 ```
 
@@ -477,10 +479,12 @@ ansible-playbook create-users.yml
 - Group must exist before user creation
 - Task order matters
 
+**Note:** The system already has `devuser` (UID 3001) and `developers` group (GID 3000) pre-created, which are used in Task 05.
+
 **Verification:**
 ```bash
-ansible all -m command -a "id devuser"
-ansible all -m command -a "getent group developers"
+ansible all -m command -a "id webadmin"
+ansible all -m command -a "getent group webadmins"
 ```
 
 ---

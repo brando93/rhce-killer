@@ -145,20 +145,20 @@ check "create-users.yml exists" 2 \
   "test -f $ANSIBLE_DIR/create-users.yml" \
   "Create playbook: create-users.yml"
 check "playbook creates group" 2 \
-  "grep -q 'group:' $ANSIBLE_DIR/create-users.yml && grep -q 'developers' $ANSIBLE_DIR/create-users.yml" \
-  "Use group module to create 'developers' group"
+  "grep -q 'group:' $ANSIBLE_DIR/create-users.yml && grep -q 'webadmins' $ANSIBLE_DIR/create-users.yml" \
+  "Use group module to create 'webadmins' group"
 check "playbook creates user" 2 \
-  "grep -q 'user:' $ANSIBLE_DIR/create-users.yml && grep -q 'devuser' $ANSIBLE_DIR/create-users.yml" \
-  "Use user module to create 'devuser'"
-ansible_check "developers group exists on node1" 3 \
-  "node1.example.com" "command" "getent group developers" "developers.*3000" \
-  "Create group with GID 3000"
-ansible_check "devuser exists on node1" 3 \
-  "node1.example.com" "command" "id devuser" "uid=3001.*gid=3000" \
-  "Create user with UID 3001 and primary group developers"
-ansible_check "devuser home directory exists" 3 \
-  "node1.example.com" "stat" "path=/home/devuser" "isdir.*True" \
-  "User should have home directory /home/devuser"
+  "grep -q 'user:' $ANSIBLE_DIR/create-users.yml && grep -q 'webadmin' $ANSIBLE_DIR/create-users.yml" \
+  "Use user module to create 'webadmin'"
+ansible_check "webadmins group exists on node1" 3 \
+  "node1.example.com" "command" "getent group webadmins" "webadmins.*4000" \
+  "Create group with GID 4000"
+ansible_check "webadmin exists on node1" 3 \
+  "node1.example.com" "command" "id webadmin" "uid=4001.*gid=4000" \
+  "Create user with UID 4001 and primary group webadmins"
+ansible_check "webadmin home directory exists" 3 \
+  "node1.example.com" "stat" "path=/home/webadmin" "isdir.*True" \
+  "User should have home directory /home/webadmin"
 
 echo ""
 # ─────────────────────────────────────────────

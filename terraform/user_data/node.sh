@@ -46,4 +46,10 @@ chown -R student:student /home/student/.ssh
 echo "rocky ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/rocky
 chmod 440 /etc/sudoers.d/rocky
 
+# ─────────────────────────────────────────────
+# Create common users/groups for exam exercises
+# ─────────────────────────────────────────────
+groupadd -g 3000 developers 2>/dev/null || true
+useradd -u 3001 -g developers -m -s /bin/bash -c "Development User" devuser 2>/dev/null || true
+
 echo "=== Node bootstrap complete at: $(date) ==="
