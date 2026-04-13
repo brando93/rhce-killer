@@ -48,7 +48,7 @@ resource "aws_vpc" "rhce" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
-  tags = { Name = "${var.project_name}-vpc" }
+  tags                 = { Name = "${var.project_name}-vpc" }
 }
 
 resource "aws_internet_gateway" "rhce" {
@@ -85,7 +85,7 @@ resource "aws_nat_gateway" "rhce" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public.id
   tags          = { Name = "${var.project_name}-nat" }
-  
+
   depends_on = [aws_internet_gateway.rhce]
 }
 
@@ -238,6 +238,16 @@ resource "aws_instance" "node1" {
   associate_public_ip_address = false
   private_ip                  = "10.0.2.11"
 
+  # Spot Instance configuration for cost savings (~70% cheaper)
+  instance_market_options {
+    market_type = "spot"
+    spot_options {
+      max_price                      = var.node_spot_max_price
+      spot_instance_type             = "one-time"
+      instance_interruption_behavior = "terminate"
+    }
+  }
+
   root_block_device {
     volume_size = 10
     volume_type = "gp3"
@@ -247,7 +257,7 @@ resource "aws_instance" "node1" {
     public_key = tls_private_key.rhce.public_key_openssh
   })
 
-  tags = { Name = "node1.example.com", Role = "node" }
+  tags = { Name = "node1.example.com", Role = "node", InstanceType = "spot" }
 }
 
 resource "aws_instance" "node2" {
@@ -259,6 +269,16 @@ resource "aws_instance" "node2" {
   associate_public_ip_address = false
   private_ip                  = "10.0.2.12"
 
+  # Spot Instance configuration for cost savings (~70% cheaper)
+  instance_market_options {
+    market_type = "spot"
+    spot_options {
+      max_price                      = var.node_spot_max_price
+      spot_instance_type             = "one-time"
+      instance_interruption_behavior = "terminate"
+    }
+  }
+
   root_block_device {
     volume_size = 10
     volume_type = "gp3"
@@ -268,5 +288,5 @@ resource "aws_instance" "node2" {
     public_key = tls_private_key.rhce.public_key_openssh
   })
 
-  tags = { Name = "node2.example.com", Role = "node" }
+  tags = { Name = "node2.example.com", Role = "node", InstanceType = "spot" }
 }

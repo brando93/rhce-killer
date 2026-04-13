@@ -40,14 +40,18 @@ This project is for **educational purposes only**. To earn the RHCE certificatio
 
 ## Cost
 
-While the lab is running: **~$0.07/hr** (~$0.53 for an 8-hour session)
+**With Spot Instances (default):** **~$0.04/hr** (~$0.32 for an 8-hour session) 💰
 
-| Resource | Cost/hr |
-|----------|---------|
-| t3.medium (control) | $0.0416 |
-| t3.micro × 2 (nodes) | $0.0208 |
-| gp3 storage (40GB) | ~$0.004 |
-| **Total** | **~$0.066** |
+| Resource | Type | Cost/hr |
+|----------|------|---------|
+| t3.medium (control) | On-Demand | $0.0416 |
+| t3.micro × 2 (nodes) | **Spot** | **$0.0062** |
+| gp3 storage (40GB) | - | ~$0.004 |
+| **Total** | - | **~$0.052** |
+
+**Savings:** ~47% compared to all On-Demand instances
+
+> **Note:** Managed nodes use Spot Instances for cost savings (~70% cheaper). Spot interruption risk is very low (<5%) for t3.micro instances. Control node remains On-Demand for stability.
 
 Run `make destroy` when done. No idle charges.
 
