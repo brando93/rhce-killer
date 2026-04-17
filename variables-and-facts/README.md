@@ -548,6 +548,41 @@ ansible-playbook facts-discovery.yml
 - `.*` matches any characters after prefix
 - Alternative: use `startswith()` filter
 
+
+> NOTE:
+
+**This is the PRO WAY**
+
+```yaml
+---
+- name: Network facts and conditionals
+  hosts: managed
+  become: true
+  gather_facts: true
+  tasks:
+
+    - name: Determine network type public/private
+      ansible.builtin.set_fact:
+        network_zone: >-
+          {% if ansible_default_ipv4.address.startswith('10.0.2') %}
+          private
+          {% elif ansible_default_ipv4.address.startswith('10.0.1') %}
+          public
+          {% else %}
+          unknown
+          {% endif %}
+
+    - name: Display message
+      ansible.builtin.debug:
+        msg: "Node is in {{ ansible_default_ipv4.address.rsplit('.',1)[0] }}.0/24 network"
+          
+    - name: Create config file
+      ansible.builtin.copy:
+        dest: /etc/network-zone.conf
+        mode: '0644'
+        content: "zone={{ network_zone }}\n"
+```
+
 ---
 
 ## Solution 07 — Custom Facts
