@@ -60,7 +60,7 @@ up:
 	@echo "  3. Start practicing:"
 	@echo "     → bash ~/exams/exam-01/START.sh"
 	@echo ""
-	@echo "💡 Tip: Run 'rhce bootstrap-status' in 2-3 minutes"
+	@echo "💡 Tip: Run 'make bootstrap-status' in 2-3 minutes"
 	@echo ""
 
 bootstrap-status:
