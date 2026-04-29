@@ -328,7 +328,7 @@ check "playbook checks memory" 2 \
   "grep -q 'ansible_memtotal_mb.*>' $ANSIBLE_DIR/when-complex.yml" \
   "Check: ansible_memtotal_mb > 1024"
 check "playbook checks hostname" 2 \
-  "grep -q 'hostname.*web\|inventory_hostname.*web' $ANSIBLE_DIR/when-complex.yml" \
+  "grep -q 'web.*hostname\|hostname.*web' $ANSIBLE_DIR/when-complex.yml" \
   "Check: hostname contains 'web'"
 check "playbook installs nginx" 3 \
   "grep -q 'nginx' $ANSIBLE_DIR/when-complex.yml" \
