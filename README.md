@@ -85,40 +85,37 @@ make up
 make bootstrap-status
 
 # 4. SSH into the control node
-make ssh
+make ssh-student
 
-# 5. Switch to student user (exam user)
-sudo su - student
-
-# 6. Verify connectivity to managed nodes
+# 5. Verify connectivity to managed nodes
 cd ~/ansible
 ansible all -m ping
 
-# 7. List available exams (two paths)
+# 6. List available exams (two paths)
 ls ~/exams/complete/      # Path A: Complete exams
 ls ~/exams/thematic/      # Path B: Thematic exams
 
-# 8. Choose your path and start
+# 7. Choose your path and start
 # Path A (Real exam simulation):
 bash ~/exams/complete/exam-01/START.sh
 
 # Path B (Learn by topic):
 bash ~/exams/thematic/inventory-basics/START.sh
 
-# 9. Read the tasks
+# 8. Read the tasks
 cat ~/exams/complete/exam-01/README.md | less
 
-# 10. Work from your ansible directory
+# 9. Work from your ansible directory
 cd ~/ansible
 
-# 11. Grade yourself when done
+# 10. Grade yourself when done
 bash ~/exams/complete/exam-01/grade.sh
 
-# 12. Continue with other exams
+# 11. Continue with other exams
 # Path A: exam-02, exam-03, exam-04, exam-05
 # Path B: playbooks-fundamentals, variables-and-facts, etc.
 
-# 13. DESTROY the lab when done (stop billing!)
+# 12. DESTROY the lab when done (stop billing!)
 exit
 exit
 make destroy
