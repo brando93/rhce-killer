@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Scoring
 TOTAL_SCORE=0
-MAX_SCORE=120
+MAX_SCORE=135
 FAILED_TASKS=()
 
 # Helper function to check conditions
@@ -465,6 +465,73 @@ check "Playbook is valid" \
     "ansible-playbook /home/student/ansible/deploy_stack.yml --syntax-check" \
     1 \
     "Playbook should pass syntax check"
+
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TASK 11: phpinfo + Apache mod_proxy_balancer (15 points)
+# ═══════════════════════════════════════════════════════════════════════════
+echo -e "${BLUE}━━━ Task 11: phpinfo + Apache mod_proxy_balancer (15 pts) ━━━${NC}"
+
+check "Role roles/phpinfo exists" \
+    "dir_exists /home/student/ansible/roles/phpinfo" \
+    1 \
+    "Create with: ansible-galaxy init roles/phpinfo"
+
+check "Role roles/balancer exists" \
+    "dir_exists /home/student/ansible/roles/balancer" \
+    1 \
+    "Create with: ansible-galaxy init roles/balancer"
+
+check "phpinfo template index.php.j2 exists" \
+    "file_exists /home/student/ansible/roles/phpinfo/templates/index.php.j2" \
+    1 \
+    "Create roles/phpinfo/templates/index.php.j2 with <?php phpinfo(); ?>"
+
+check "phpinfo template prints Backend hostname" \
+    "grep -q 'Backend' /home/student/ansible/roles/phpinfo/templates/index.php.j2" \
+    1 \
+    "Include 'Backend: {{ ansible_hostname }}' in the template"
+
+check "balancer template exists" \
+    "file_exists /home/student/ansible/roles/balancer/templates/balancer.conf.j2" \
+    1 \
+    "Create roles/balancer/templates/balancer.conf.j2 with <Proxy balancer://...>"
+
+check "balancer template uses mod_proxy_balancer syntax" \
+    "grep -q 'balancer://' /home/student/ansible/roles/balancer/templates/balancer.conf.j2" \
+    2 \
+    "Use <Proxy \"balancer://mycluster\"> ... </Proxy>"
+
+check "balancer template loops over groups['webservers']" \
+    "grep -E \"for[[:space:]]+\\w+[[:space:]]+in[[:space:]]+groups\\\\['webservers'\\\\]\" /home/student/ansible/roles/balancer/templates/balancer.conf.j2" \
+    2 \
+    "Loop {% for host in groups['webservers'] %} ... {% endfor %}"
+
+check "site.yml master playbook exists" \
+    "file_exists /home/student/ansible/site.yml" \
+    1 \
+    "Create site.yml with two plays: phpinfo on webservers, balancer on balancers"
+
+check "site.yml targets webservers and balancers" \
+    "grep -q 'webservers' /home/student/ansible/site.yml && grep -q 'balancers' /home/student/ansible/site.yml" \
+    1 \
+    "Each role goes to its own host group"
+
+check "Backend node1 returns its hostname" \
+    "ansible node1.example.com -b -m shell -a 'curl -s http://localhost/index.php' 2>/dev/null | grep -q 'Backend'" \
+    2 \
+    "node1 must serve the templated phpinfo page"
+
+check "Balancer config deployed" \
+    "ansible balancers -b -m shell -a 'test -f /etc/httpd/conf.d/balancer.conf' 2>/dev/null | grep -q 'SUCCESS'" \
+    1 \
+    "Use ansible.builtin.template to drop /etc/httpd/conf.d/balancer.conf"
+
+check "httpd active on balancer" \
+    "ansible balancers -b -m shell -a 'systemctl is-active httpd' 2>/dev/null | grep -q 'active'" \
+    1 \
+    "Start and enable httpd on the balancer"
 
 echo ""
 

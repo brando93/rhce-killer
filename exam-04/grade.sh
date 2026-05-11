@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Scoring
 TOTAL_SCORE=0
-MAX_SCORE=120
+MAX_SCORE=180
 FAILED_TASKS=()
 
 # Helper function to check conditions
@@ -455,6 +455,142 @@ check "MOTD file configured" \
     "ansible all -m shell -a 'test -f /etc/motd' 2>/dev/null | grep -c 'SUCCESS' | grep -q '3'" \
     3 \
     "Configure /etc/motd with system information"
+
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TASK 11: Disk Partition with parted (15 points)
+# ═══════════════════════════════════════════════════════════════════════════
+echo -e "${BLUE}━━━ Task 11: Disk Partition with parted (15 pts) ━━━${NC}"
+
+check "Playbook partition.yml exists" \
+    "file_exists /home/student/ansible/partition.yml" \
+    2 \
+    "Create /home/student/ansible/partition.yml using community.general.parted"
+
+check "Playbook uses community.general.parted" \
+    "grep -q 'community.general.parted\\|parted:' /home/student/ansible/partition.yml" \
+    2 \
+    "Use community.general.parted (NOT shell parted commands)"
+
+check "Playbook uses ansible.posix.mount" \
+    "grep -q 'ansible.posix.mount\\|posix.mount\\|mount:' /home/student/ansible/partition.yml" \
+    1 \
+    "Persist the mount with ansible.posix.mount and state: mounted"
+
+check "Mount point /mnt/data exists" \
+    "ansible all -b -m shell -a 'test -d /mnt/data' 2>/dev/null | grep -c 'SUCCESS' | grep -qE '[1-9]'" \
+    2 \
+    "Create /mnt/data with state: directory"
+
+check "/dev/sdb1 is mounted at /mnt/data on at least one host" \
+    "ansible all -b -m shell -a 'mount | grep /mnt/data' 2>/dev/null | grep -q 'sdb1'" \
+    4 \
+    "Mount /dev/sdb1 at /mnt/data — only graded on hosts that actually have /dev/sdb"
+
+check "/etc/fstab has /mnt/data entry on at least one host" \
+    "ansible all -b -m shell -a 'grep /mnt/data /etc/fstab' 2>/dev/null | grep -q '/mnt/data'" \
+    2 \
+    "ansible.posix.mount with state: mounted writes the fstab entry automatically"
+
+check "Filesystem on /dev/sdb1 is xfs" \
+    "ansible all -b -m shell -a 'lsblk -f /dev/sdb1' 2>/dev/null | grep -q 'xfs'" \
+    2 \
+    "Use community.general.filesystem fstype: xfs"
+
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TASK 12: Conditional LVM Provisioning (20 points)
+# ═══════════════════════════════════════════════════════════════════════════
+echo -e "${BLUE}━━━ Task 12: Conditional LVM Provisioning (20 pts) ━━━${NC}"
+
+check "Playbook lvm-conditional.yml exists" \
+    "file_exists /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Create /home/student/ansible/lvm-conditional.yml"
+
+check "Playbook uses 'is not defined' guard" \
+    "grep -q 'is not defined' /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Skip hosts where ansible_devices[target_disk] is not defined"
+
+check "Playbook uses meta: end_host" \
+    "grep -q 'end_host' /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Use ansible.builtin.meta: end_host to skip and continue"
+
+check "Playbook uses fail module" \
+    "grep -E 'ansible.builtin.fail|^[[:space:]]+fail:' /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Use ansible.builtin.fail to abort hosts with too-small disks"
+
+check "Playbook uses set_fact for disk size" \
+    "grep -q 'set_fact' /home/student/ansible/lvm-conditional.yml && grep -q 'sectors' /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Compute target_disk_size_mb with set_fact from sectors * sectorsize"
+
+check "Playbook uses community.general.lvg" \
+    "grep -q 'community.general.lvg\\|^[[:space:]]\\+lvg:' /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Use community.general.lvg to create the volume group"
+
+check "Playbook uses community.general.lvol" \
+    "grep -q 'community.general.lvol\\|^[[:space:]]\\+lvol:' /home/student/ansible/lvm-conditional.yml" \
+    2 \
+    "Use community.general.lvol to create the logical volume"
+
+check "VG vg_data exists somewhere (only on hosts with the disk)" \
+    "ansible all -b -m shell -a 'vgs vg_data 2>/dev/null' 2>/dev/null | grep -q 'vg_data'" \
+    3 \
+    "VG should be created on hosts where the disk is large enough"
+
+check "/mnt/app mounted on at least one host" \
+    "ansible all -b -m shell -a 'mount | grep /mnt/app' 2>/dev/null | grep -q '/mnt/app'" \
+    3 \
+    "Persistently mount the LV at /mnt/app"
+
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TASK 13: Static NIC with rhel-system-roles.network (15 points)
+# ═══════════════════════════════════════════════════════════════════════════
+echo -e "${BLUE}━━━ Task 13: Static NIC with rhel-system-roles.network (15 pts) ━━━${NC}"
+
+check "Playbook network-static.yml exists" \
+    "file_exists /home/student/ansible/network-static.yml" \
+    2 \
+    "Create /home/student/ansible/network-static.yml"
+
+check "Playbook references rhel-system-roles.network" \
+    "grep -q 'rhel-system-roles.network\\|rhel_system_roles.network' /home/student/ansible/network-static.yml" \
+    3 \
+    "Use the role rhel-system-roles.network (or redhat.rhel_system_roles.network)"
+
+check "Playbook uses include_role with when guard" \
+    "grep -q 'include_role' /home/student/ansible/network-static.yml && grep -q 'when:' /home/student/ansible/network-static.yml" \
+    3 \
+    "Use include_role + when: ansible_eth1 is defined to safely skip hosts"
+
+check "Playbook defines network_connections var" \
+    "grep -q 'network_connections' /home/student/ansible/network-static.yml" \
+    2 \
+    "Pass connection profile via network_connections list"
+
+check "Playbook uses ansible_play_hosts for unique IPs" \
+    "grep -q 'ansible_play_hosts' /home/student/ansible/network-static.yml" \
+    2 \
+    "Use ansible_play_hosts.index(inventory_hostname) for per-host IP offset"
+
+check "Playbook installs rhel-system-roles" \
+    "grep -E 'rhel-system-roles' /home/student/ansible/network-static.yml | grep -q 'state\\|name'" \
+    1 \
+    "Ensure the rhel-system-roles package is installed (pre_tasks)"
+
+check "static-eth1 connection profile created on at least one host" \
+    "ansible all -b -m shell -a 'nmcli connection show static-eth1' 2>/dev/null | grep -q 'static-eth1'" \
+    2 \
+    "Will only PASS on hosts that actually have eth1; safe to skip otherwise"
 
 echo ""
 

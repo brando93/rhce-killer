@@ -248,6 +248,29 @@ check "Apache responding on node1 port 80" 5 \
   "ansible node1.example.com -m command -a 'curl -s -o /dev/null -w %{http_code} http://localhost' -i inventory 2>/dev/null | grep -q '200'" \
   "Ensure Apache is installed, started, and accessible"
 
+echo ""
+# ─────────────────────────────────────────────
+echo -e "${BOLD}Task 11 — Yum/DNF repositories (10 pts)${NC}"
+# ─────────────────────────────────────────────
+check "repos.yml playbook exists" 1 \
+  "test -f $ANSIBLE_DIR/repos.yml" \
+  "Create /home/student/ansible/repos.yml using ansible.builtin.yum_repository"
+check "Playbook uses yum_repository module" 1 \
+  "grep -q 'yum_repository' $ANSIBLE_DIR/repos.yml" \
+  "Use ansible.builtin.yum_repository (NOT copy of a static .repo file)"
+check "EX294-BaseOS.repo present on node1" 2 \
+  "ansible node1.example.com -m command -a 'test -f /etc/yum.repos.d/EX294-BaseOS.repo' -i inventory 2>/dev/null" \
+  "Set the 'file:' parameter to EX294-BaseOS so the .repo file is named correctly"
+check "EX294-BaseOS.repo present on node2" 2 \
+  "ansible node2.example.com -m command -a 'test -f /etc/yum.repos.d/EX294-BaseOS.repo' -i inventory 2>/dev/null" \
+  "Repository must land on every managed node"
+check "EX294-AppStream.repo present on node1" 2 \
+  "ansible node1.example.com -m command -a 'test -f /etc/yum.repos.d/EX294-AppStream.repo' -i inventory 2>/dev/null" \
+  "Set the 'file:' parameter to EX294-AppStream"
+check "Both repos visible to dnf on node1" 2 \
+  "ansible node1.example.com -b -m shell -a 'dnf repolist 2>/dev/null | grep -E \"EX294-BaseOS|EX294-AppStream\" | wc -l' -i inventory 2>/dev/null | grep -q '2'" \
+  "Both repositories must be enabled (enabled: yes)"
+
 # ─────────────────────────────────────────────
 # FINAL SCORE
 # ─────────────────────────────────────────────
@@ -266,7 +289,7 @@ fi
 
 echo ""
 echo -e "${BOLD}  Score: ${PASS}/${TOTAL} points (${PCT}%)${NC}"
-echo -e "  Passing threshold: 70% (84/120 points)"
+echo -e "  Passing threshold: 70% (91/130 points)"
 echo -e "  Points earned: ${GREEN}${PASS}${NC} | Points lost: ${RED}${FAIL}${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════${NC}"
 echo ""

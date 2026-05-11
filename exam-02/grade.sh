@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Scoring
 TOTAL_SCORE=0
-MAX_SCORE=120
+MAX_SCORE=135
 FAILED_TASKS=()
 
 # Helper function to check conditions
@@ -415,6 +415,48 @@ check "Uses vault variables in playbook" \
     "grep -q 'vault_' /home/student/ansible/vault_demo.yml || grep -q 'secret_' /home/student/ansible/vault_demo.yml" \
     3 \
     "Reference vault variables in playbook"
+
+echo ""
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TASK 11: Cluster Inventory Report from hostvars (15 points)
+# ═══════════════════════════════════════════════════════════════════════════
+echo -e "${BLUE}━━━ Task 11: Cluster Inventory Report from hostvars (15 pts) ━━━${NC}"
+
+check "Playbook cluster-report.yml exists" \
+    "file_exists /home/student/ansible/cluster-report.yml" \
+    2 \
+    "Create /home/student/ansible/cluster-report.yml"
+
+check "Template cluster-info.j2 exists" \
+    "file_exists /home/student/ansible/templates/cluster-info.j2" \
+    2 \
+    "Create templates/cluster-info.j2 that loops over groups['all']"
+
+check "Template loops over groups['all']" \
+    "grep -E \"for[[:space:]]+\\w+[[:space:]]+in[[:space:]]+groups\\\\['all'\\\\]\" /home/student/ansible/templates/cluster-info.j2" \
+    3 \
+    "Use {% for host in groups['all'] %} ... {% endfor %} inside the template"
+
+check "Template reads from hostvars" \
+    "grep -q 'hostvars\\[' /home/student/ansible/templates/cluster-info.j2" \
+    2 \
+    "Pull every value via hostvars[host].<fact>"
+
+check "Template uses default('NONE') filter" \
+    "grep -q \"default('NONE')\" /home/student/ansible/templates/cluster-info.j2" \
+    1 \
+    "Defend every fact lookup with | default('NONE')"
+
+check "/etc/cluster-info.txt deployed to every node" \
+    "ansible all -b -m shell -a 'test -f /etc/cluster-info.txt' 2>/dev/null | grep -c 'SUCCESS' | grep -qE '^[23]$'" \
+    3 \
+    "Use ansible.builtin.template to write /etc/cluster-info.txt on every host"
+
+check "/etc/cluster-info.txt lists every host" \
+    "ansible node1.example.com -b -m shell -a 'grep -c node /etc/cluster-info.txt' 2>/dev/null | grep -qE '[2-9]'" \
+    2 \
+    "The file must contain a line per host in groups['all']"
 
 echo ""
 

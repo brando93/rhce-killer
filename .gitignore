@@ -4,5 +4,10 @@ terraform/.terraform.lock.hcl
 terraform/terraform.tfstate
 terraform/terraform.tfstate.backup
 terraform/terraform.tfvars
+terraform/.lab-up.tfplan*
+.lab-logs/
 .DS_Store
 Ansible Documentation.md
+
+# Office/editor lock files
+~$*
