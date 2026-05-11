@@ -300,6 +300,55 @@ Create a playbook `/home/student/ansible/when-list.yml` that:
 
 ---
 
+### Task 16 — Conditional LVM Provisioning (20 pts)
+
+Create a playbook `/home/student/ansible/lvm-conditional.yml` that creates an
+LVM logical volume **only when the underlying disk is suitable**.
+
+Variables to define at the top of the playbook:
+```yaml
+target_disk: sdb
+vg_name: vg_data
+lv_name: lv_app
+desired_size_mb: 1500
+mount_point: /mnt/app
+fs_type: xfs
+```
+
+Behavior required (each branch must be expressed with `when:`):
+
+1. If `ansible_devices[target_disk]` **is not defined** → print
+   `"Disk {{ target_disk }} not present, skipping"` and end the play for that
+   host (no failures).
+2. If the disk exists but its size in MB is **less than** `desired_size_mb` →
+   fail the play for that host with the message
+   `"Disk too small: needed {{ desired_size_mb }}MB, got XXX MB"` using the
+   `ansible.builtin.fail` module.
+3. If the disk exists and is **>= `desired_size_mb`** → create the VG, the LV
+   at exactly `desired_size_mb` MB, format it `xfs`, and mount it persistently
+   at `mount_point`.
+
+You must read the disk size from `ansible_devices[target_disk].size` (string
+like `"5.00 GB"`) **or** from `ansible_devices[target_disk].sectors` *
+`sectorsize` — both are acceptable, but the conditional comparison must be
+numeric.
+
+**Requirements:**
+- Define `target_disk_size_mb` with `set_fact` from the facts
+- Use `when:` for all three branches
+- The play must remain idempotent across reruns
+- Use `ansible.builtin.meta: end_host` for the "not present" branch
+
+**Verification:**
+```bash
+ansible-playbook lvm-conditional.yml
+# On a host with /dev/sdb >= 1500 MB:
+ansible all -b -m shell -a "lsblk /dev/{{ target_disk }}"
+ansible all -b -m shell -a "mount | grep /mnt/app"
+```
+
+---
+
 ## Scoring
 
 | Task | Topic | Points |
@@ -319,9 +368,10 @@ Create a playbook `/home/student/ansible/when-list.yml` that:
 | 13 | Complex Conditionals | 18 |
 | 14 | Nested Conditions | 15 |
 | 15 | List Membership | 12 |
-| **Total** | | **187** |
+| 16 | Conditional LVM Provisioning | 20 |
+| **Total** | | **207** |
 
-**Passing score: 70% (131/187 points)**
+**Passing score: 70% (145/207 points)**
 
 ---
 
@@ -992,6 +1042,96 @@ when: inventory_hostname in groups['databases']
     state: present
   when: pkg_check.rc != 0
 ```
+
+---
+
+## Solution 16 — Conditional LVM Provisioning
+
+**Playbook: lvm-conditional.yml**
+```yaml
+---
+- name: Conditionally create LVM on a target disk
+  hosts: all
+  become: true
+
+  vars:
+    target_disk: sdb
+    vg_name: vg_data
+    lv_name: lv_app
+    desired_size_mb: 1500
+    mount_point: /mnt/app
+    fs_type: xfs
+
+  tasks:
+    - name: Skip host when target disk is missing
+      ansible.builtin.debug:
+        msg: "Disk {{ target_disk }} not present, skipping"
+      when: ansible_devices[target_disk] is not defined
+
+    - name: End play on hosts without the disk
+      ansible.builtin.meta: end_host
+      when: ansible_devices[target_disk] is not defined
+
+    - name: Compute target disk size in MB
+      ansible.builtin.set_fact:
+        target_disk_size_mb: >-
+          {{ (ansible_devices[target_disk].sectors | int *
+              ansible_devices[target_disk].sectorsize | int)
+              // (1024 * 1024) }}
+
+    - name: Fail when the disk is smaller than required
+      ansible.builtin.fail:
+        msg: "Disk too small: needed {{ desired_size_mb }}MB, got {{ target_disk_size_mb }}MB"
+      when: target_disk_size_mb | int < desired_size_mb | int
+
+    - name: Create volume group on the target disk
+      community.general.lvg:
+        vg: "{{ vg_name }}"
+        pvs: "/dev/{{ target_disk }}"
+        state: present
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Create logical volume
+      community.general.lvol:
+        vg: "{{ vg_name }}"
+        lv: "{{ lv_name }}"
+        size: "{{ desired_size_mb }}"
+        state: present
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Make filesystem on the LV
+      community.general.filesystem:
+        fstype: "{{ fs_type }}"
+        dev: "/dev/{{ vg_name }}/{{ lv_name }}"
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Ensure mount point exists
+      ansible.builtin.file:
+        path: "{{ mount_point }}"
+        state: directory
+        mode: '0755'
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Mount the LV persistently
+      ansible.posix.mount:
+        path: "{{ mount_point }}"
+        src: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: "{{ fs_type }}"
+        state: mounted
+      when: target_disk_size_mb | int >= desired_size_mb | int
+```
+
+**Explanation:**
+- The first conditional uses `is not defined` against
+  `ansible_devices[target_disk]` so absent disks short-circuit safely
+- `ansible.builtin.meta: end_host` cleanly ends the play **per host** without
+  failing — unlike `fail`, which aborts that host with a non-zero RC
+- We compute size in MB ourselves from `sectors * sectorsize` because the
+  `size` string is locale-flavored (`"5.00 GB"`) and harder to compare
+- Every storage task carries the same `when:` guard, so the play remains
+  idempotent and safe across hosts with different disk layouts
+- Re-runs of the play are no-ops once the LV/FS/mount are in place — the
+  `lvg`, `lvol`, `filesystem`, and `mount` modules are all idempotent
 
 ---
 

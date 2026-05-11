@@ -477,6 +477,40 @@ Create a playbook `/home/student/ansible/template-complex.yml` that:
 
 ---
 
+### Task 21 — Cluster Inventory Report from hostvars (22 pts)
+
+Create a playbook `/home/student/ansible/cluster-report.yml` that writes a
+cluster-summary file to **every managed node** at `/etc/cluster-info.txt`,
+containing one line per host in `groups['all']`. The template MUST loop over
+`groups['all']` and pull every value from `hostvars`.
+
+Template `templates/cluster-info.j2` must produce output like:
+```
+# Cluster snapshot generated at {{ ansible_date_time.iso8601 }}
+# Total nodes: 2
+
+HOSTNAME             IP ADDRESS       OS                          MEMORY (MB)  CPUS
+node1.example.com    10.0.2.11        Rocky Linux 9.3             1840         2
+node2.example.com    10.0.2.12        Rocky Linux 9.3             1840         2
+```
+
+**Requirements:**
+- Pull all data through `hostvars[item]` (where `item` iterates over
+  `groups['all']`)
+- Use `| default('NONE')` so missing facts never break rendering
+- Right-pad columns with the `format` filter or string slicing so columns line up
+- Write the file with the `template` module to `/etc/cluster-info.txt`
+- The play must gather facts from every host so `hostvars` is fully populated
+- File ownership: `root:root`, mode `0644`
+
+**Verification:**
+```bash
+ansible-playbook cluster-report.yml
+ansible all -b -m shell -a "head -20 /etc/cluster-info.txt"
+```
+
+---
+
 ## Scoring
 
 | Task | Topic | Points |
@@ -501,9 +535,10 @@ Create a playbook `/home/student/ansible/template-complex.yml` that:
 | 18 | Loop First/Last | 18 |
 | 19 | Whitespace Control | 20 |
 | 20 | Complex Multi-Level | 25 |
-| **Total** | | **366** |
+| 21 | Cluster Inventory Report | 22 |
+| **Total** | | **388** |
 
-**Passing score: 70% (256/366 points)**
+**Passing score: 70% (272/388 points)**
 
 ---
 
@@ -1488,6 +1523,63 @@ Environment: {{ env_name | upper }}
 {{ loop.length }}     # Total iterations
 {{ loop.cycle('odd', 'even') }}  # Alternate values
 ```
+
+---
+
+## Solution 21 — Cluster Inventory Report from hostvars
+
+**Playbook: cluster-report.yml**
+```yaml
+---
+- name: Make sure all hostvars are populated
+  hosts: all
+  gather_facts: true
+  tasks: []
+
+- name: Render cluster snapshot on every node
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Deploy cluster-info template
+      ansible.builtin.template:
+        src: templates/cluster-info.j2
+        dest: /etc/cluster-info.txt
+        owner: root
+        group: root
+        mode: '0644'
+```
+
+**Template: templates/cluster-info.j2**
+```jinja
+# Cluster snapshot generated at {{ ansible_date_time.iso8601 }}
+# Total nodes: {{ groups['all'] | length }}
+
+{{ "%-20s %-16s %-27s %-12s %s" | format("HOSTNAME", "IP ADDRESS", "OS", "MEMORY (MB)", "CPUS") }}
+{% for host in groups['all'] %}
+{{ "%-20s %-16s %-27s %-12s %s" | format(
+     host,
+     hostvars[host].ansible_default_ipv4.address | default('NONE'),
+     (hostvars[host].ansible_distribution | default('NONE')) ~ ' ' ~ (hostvars[host].ansible_distribution_version | default('')),
+     hostvars[host].ansible_memtotal_mb | default('NONE'),
+     hostvars[host].ansible_processor_vcpus | default('NONE'))
+}}
+{% endfor %}
+```
+
+**Explanation:**
+- The first play runs `gather_facts: true` against every host so the second
+  play can read **complete** `hostvars` for any node, even when the second
+  play only targets a subset
+- The template loops `groups['all']` and pulls each field from
+  `hostvars[host]` — the canonical RHCE pattern for cross-host data
+- `| default('NONE')` defends every fact lookup so the file still renders if
+  one node failed to gather
+- The `format` filter (`%-20s` etc.) pads every column to a fixed width,
+  giving aligned, copy-paste-friendly output
+- Writing the file with the `template` module gives idempotent updates: it
+  only changes when the rendered text changes
 
 ---
 

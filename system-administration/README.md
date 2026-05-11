@@ -322,6 +322,101 @@ Create playbook `webserver-stack.yml` that:
 
 ---
 
+### Task 16 — Configure Yum/DNF Repositories (18 pts)
+
+Create playbook `repos.yml` that uses the `ansible.builtin.yum_repository` module
+to declare two custom repositories on **all managed nodes**:
+
+- Repository `EX294-BaseOS`:
+  - `name: EX294-BaseOS`
+  - `description: "EX294 BaseOS Repository"`
+  - `baseurl: http://content.example.com/rhel9.0/x86_64/dvd/BaseOS`
+  - `gpgcheck: yes`
+  - `gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release`
+  - `enabled: yes`
+
+- Repository `EX294-AppStream`:
+  - `name: EX294-AppStream`
+  - `description: "EX294 AppStream Repository"`
+  - `baseurl: http://content.example.com/rhel9.0/x86_64/dvd/AppStream`
+  - `gpgcheck: no`
+  - `enabled: yes`
+
+**Requirements:**
+- The `.repo` files must land in `/etc/yum.repos.d/` (default location)
+- Use `ansible.builtin.yum_repository` (NOT a `copy` of a static file)
+- After running, `dnf repolist` on each node must list both repos
+- Save the playbook in `/home/student/ansible/repos.yml`
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "ls /etc/yum.repos.d/EX294-*.repo"
+ansible all -b -m shell -a "dnf repolist | grep EX294"
+```
+
+---
+
+### Task 17 — Create a Disk Partition with parted (20 pts)
+
+Create playbook `partition.yml` that creates a primary partition on **all managed
+nodes** using the `community.general.parted` module.
+
+- Target device: `/dev/sdb` (assume already attached as a 5 GB raw disk)
+- Partition number: `1`
+- Partition type: `primary`
+- Filesystem label: `gpt`
+- Size: from `0%` to `2GiB`
+- Filesystem on the new partition: `xfs`
+- Mount point: `/mnt/data` (persistent, in `/etc/fstab`)
+- Owner/group: `root`, mode `0755`
+
+The playbook must be **idempotent** — running it twice cannot recreate the
+partition or the filesystem.
+
+If `/dev/sdb` does not exist on a node, the play must skip the disk-shaping
+tasks for that host (use a conditional on `ansible_devices.sdb is defined`)
+and continue without failing the whole run.
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "lsblk /dev/sdb"
+ansible all -b -m shell -a "mount | grep /mnt/data"
+ansible all -b -m shell -a "grep /mnt/data /etc/fstab"
+```
+
+---
+
+### Task 18 — Configure a static NIC with rhel-system-roles.network (18 pts)
+
+Create playbook `network-static.yml` that uses `rhel-system-roles.network` to
+declare a NetworkManager connection profile on **all managed nodes**.
+
+Requirements:
+- Install `rhel-system-roles` if not already present
+- Use the role `redhat.rhel_system_roles.network` (or `rhel-system-roles.network`
+  if installed via `dnf`)
+- Define a connection named `static-eth1` for interface `eth1` with:
+  - `state: up`
+  - `type: ethernet`
+  - `autoconnect: yes`
+  - IPv4 address `192.0.2.{{ 100 + ansible_play_hosts.index(inventory_hostname) }}/24`
+    (so node1 gets `.100`, node2 gets `.101`, …)
+  - Gateway `192.0.2.1`
+  - DNS servers `192.0.2.53` and `8.8.8.8`
+  - DNS search `lab.example.com`
+- The play must be **idempotent**
+- If the host has no `eth1` interface (`ansible_eth1 is not defined`), skip
+  the role for that host without failing the run
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "nmcli connection show static-eth1"
+ansible all -b -m shell -a "ip -4 addr show eth1"
+ansible all -b -m shell -a "cat /etc/NetworkManager/system-connections/static-eth1.nmconnection 2>/dev/null"
+```
+
+---
+
 ## Scoring
 
 | Task | Topic | Points |
@@ -341,9 +436,12 @@ Create playbook `webserver-stack.yml` that:
 | 13 | Backup Configuration | 22 |
 | 14 | Monitoring Setup | 20 |
 | 15 | Web Server Stack | 25 |
-| **Total** | | **289** |
+| 16 | Yum/DNF Repositories | 18 |
+| 17 | Disk Partition with parted | 20 |
+| 18 | Static NIC via system-roles.network | 18 |
+| **Total** | | **345** |
 
-**Passing score: 70% (202/289 points)**
+**Passing score: 70% (242/345 points)**
 
 ---
 
@@ -1009,6 +1107,179 @@ bash /home/student/exams/system-administration/grade.sh
     CustomLog /var/log/httpd/{{ domain_name }}-ssl-access.log combined
 </VirtualHost>
 ```
+
+---
+
+## Solution 16 — Yum/DNF Repositories
+
+**Playbook: repos.yml**
+```yaml
+---
+- name: Configure custom EX294 repositories
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Configure EX294-BaseOS repository
+      ansible.builtin.yum_repository:
+        name: EX294-BaseOS
+        description: "EX294 BaseOS Repository"
+        baseurl: http://content.example.com/rhel9.0/x86_64/dvd/BaseOS
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+        enabled: true
+        file: EX294-BaseOS
+
+    - name: Configure EX294-AppStream repository
+      ansible.builtin.yum_repository:
+        name: EX294-AppStream
+        description: "EX294 AppStream Repository"
+        baseurl: http://content.example.com/rhel9.0/x86_64/dvd/AppStream
+        gpgcheck: false
+        enabled: true
+        file: EX294-AppStream
+```
+
+**Explanation:**
+- `yum_repository` writes a `.repo` file directly under `/etc/yum.repos.d/`
+- The `file:` parameter controls the `.repo` filename (without extension)
+- One module call = one repo stanza; do not use `copy` for this
+- `gpgcheck: true` requires `gpgkey:` to be set, otherwise dnf will refuse the repo
+- The module is idempotent — re-running the playbook will only change the file
+  if a parameter actually changed
+
+---
+
+## Solution 17 — Disk Partition with parted
+
+**Playbook: partition.yml**
+```yaml
+---
+- name: Create and mount a partition on /dev/sdb
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Skip hosts that do not have /dev/sdb
+      ansible.builtin.debug:
+        msg: "/dev/sdb is not present on {{ inventory_hostname }} — skipping"
+      when: ansible_devices.sdb is not defined
+
+    - name: Create a 2GiB primary partition on /dev/sdb
+      community.general.parted:
+        device: /dev/sdb
+        number: 1
+        state: present
+        label: gpt
+        part_type: primary
+        part_start: 0%
+        part_end: 2GiB
+      when: ansible_devices.sdb is defined
+
+    - name: Format the new partition as XFS
+      community.general.filesystem:
+        fstype: xfs
+        dev: /dev/sdb1
+      when: ansible_devices.sdb is defined
+
+    - name: Ensure /mnt/data exists
+      ansible.builtin.file:
+        path: /mnt/data
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: ansible_devices.sdb is defined
+
+    - name: Persistently mount /dev/sdb1 at /mnt/data
+      ansible.posix.mount:
+        path: /mnt/data
+        src: /dev/sdb1
+        fstype: xfs
+        opts: defaults
+        state: mounted
+      when: ansible_devices.sdb is defined
+```
+
+**Explanation:**
+- `community.general.parted` handles partition creation idempotently — it inspects
+  the existing partition table before acting
+- `part_start: 0%` / `part_end: 2GiB` is the standard syntax; do NOT pass plain
+  bytes (`2147483648`) — parted expects size suffixes
+- `community.general.filesystem` is also idempotent: it will not reformat a disk
+  that already has the requested filesystem
+- `ansible.posix.mount` with `state: mounted` mounts now AND adds an `/etc/fstab`
+  entry, satisfying the "persistent" requirement
+- The `when: ansible_devices.sdb is defined` guard makes the whole play safe to
+  run against hosts that don't have the extra disk
+
+---
+
+## Solution 18 — Static NIC via rhel-system-roles.network
+
+**Playbook: network-static.yml**
+```yaml
+---
+- name: Configure static NIC with rhel-system-roles.network
+  hosts: all
+  become: true
+
+  pre_tasks:
+    - name: Ensure rhel-system-roles is installed
+      ansible.builtin.dnf:
+        name: rhel-system-roles
+        state: present
+
+  vars:
+    network_connections:
+      - name: static-eth1
+        state: up
+        type: ethernet
+        interface_name: eth1
+        autoconnect: true
+        ip:
+          address:
+            - "192.0.2.{{ 100 + ansible_play_hosts.index(inventory_hostname) }}/24"
+          gateway4: 192.0.2.1
+          dns:
+            - 192.0.2.53
+            - 8.8.8.8
+          dns_search:
+            - lab.example.com
+
+  tasks:
+    - name: Apply network role only if eth1 exists
+      ansible.builtin.include_role:
+        name: rhel-system-roles.network
+      when: ansible_eth1 is defined
+```
+
+**Explanation:**
+- `rhel-system-roles.network` consumes a single variable, `network_connections`,
+  which is a list of connection profile dicts — one per NIC
+- We bake the role into the play with `include_role` instead of the `roles:`
+  keyword so we can guard it with a `when:` (the `roles:` keyword runs
+  unconditionally per host)
+- `ansible_play_hosts.index(inventory_hostname)` gives a stable per-host
+  offset so each node gets a unique IP without hardcoding addresses
+- The role is **idempotent** — re-running the playbook reconciles the
+  NetworkManager profile in place; it will not flap the interface if nothing
+  changed
+- `pre_tasks` ensures the role is actually installed (the package
+  `rhel-system-roles` ships the role under
+  `/usr/share/ansible/roles/rhel-system-roles.network/`)
+
+**Quick test pattern (don't break SSH on the exam!):**
+```bash
+ansible-playbook network-static.yml --check
+ansible-playbook network-static.yml --limit node1.example.com
+ansible node1.example.com -b -m shell -a "nmcli connection show static-eth1"
+```
+
+> ⚠️ **Warning for the real exam:** never apply a static-IP role to the
+> primary management interface (`eth0` / the one Ansible is using to reach
+> the host). Always target a secondary NIC like `eth1`, or you'll lose
+> connectivity mid-play.
 
 ---
 

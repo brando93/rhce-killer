@@ -510,6 +510,7 @@ ansible all -m command -a "rpm -q httpd"
           ansible.builtin.copy:
             src: /tmp/source.txt
             dest: /tmp/dest.txt
+            remote_src: true
             mode: '0644'
       
       always:

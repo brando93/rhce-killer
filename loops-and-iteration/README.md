@@ -277,7 +277,7 @@ Create a playbook `/home/student/ansible/loop-dict2items.yml` that:
 
 ---
 
-### Task 13 — Loop with items2dict (15 pts)
+### Task 13 — Loop with User-Group Pairs (15 pts)
 
 Create a playbook `/home/student/ansible/loop-items2dict.yml` that:
 - Runs on **all managed nodes**
@@ -367,7 +367,7 @@ Create a playbook `/home/student/ansible/loop-complex.yml` that:
 | 10 | Nested Loop | 18 |
 | 11 | Loop with Subelements | 18 |
 | 12 | Loop with dict2items | 15 |
-| 13 | Loop with items2dict | 15 |
+| 13 | Loop with User-Group Pairs | 15 |
 | 14 | Loop with until | 18 |
 | 15 | Complex Loop | 20 |
 | **Total** | | **207** |
@@ -881,11 +881,11 @@ services:
 
 ---
 
-## Solution 13 — Loop with items2dict
+## Solution 13 — Loop with User-Group Pairs
 
 ```yaml
 ---
-- name: Loop with items2dict concept
+- name: Loop with user-group pairs
   hosts: all
   become: true
   

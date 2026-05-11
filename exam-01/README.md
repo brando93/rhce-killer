@@ -199,6 +199,29 @@ Create a playbook `galaxy-apache.yml` that:
 
 ---
 
+### Task 11 — Yum/DNF repositories (10 pts)
+Create a playbook `repos.yml` that runs on **all managed nodes** and uses the
+`ansible.builtin.yum_repository` module to declare two repositories under
+`/etc/yum.repos.d/`:
+
+- `EX294-BaseOS`
+  - `description: "EX294 BaseOS Repository"`
+  - `baseurl: http://content.example.com/rhel9.0/x86_64/dvd/BaseOS`
+  - `gpgcheck: yes`
+  - `gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release`
+
+- `EX294-AppStream`
+  - `description: "EX294 AppStream Repository"`
+  - `baseurl: http://content.example.com/rhel9.0/x86_64/dvd/AppStream`
+  - `gpgcheck: no`
+
+Both repositories must be enabled. Do **not** copy a static `.repo` file —
+use the `yum_repository` module so the play stays idempotent.
+
+After running, `dnf repolist` on each node must show both `EX294-*` repos.
+
+---
+
 ## Scoring
 
 | Task | Points |
@@ -213,9 +236,10 @@ Create a playbook `galaxy-apache.yml` that:
 | 08 — Collections | 10 |
 | 09 — Error handling | 10 |
 | 10 — Galaxy role | 15 |
-| **Total** | **120** |
+| 11 — Yum/DNF repositories | 10 |
+| **Total** | **130** |
 
-**Passing score: 70% (84/120 points)**
+**Passing score: 70% (91/130 points)**
 
 ---
 
@@ -835,6 +859,57 @@ ansible-playbook galaxy-apache.yml
 ansible-galaxy role list -p roles/
 ansible node1.example.com -m command -a "systemctl is-active httpd" -i inventory
 ansible node1.example.com -m uri -a "url=http://node1.example.com status_code=200" -i inventory
+```
+
+---
+
+## Solution 11 — Yum/DNF repositories
+
+**Playbook: repos.yml**
+```yaml
+---
+- name: Configure custom EX294 repositories
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Configure EX294-BaseOS repository
+      ansible.builtin.yum_repository:
+        name: EX294-BaseOS
+        description: "EX294 BaseOS Repository"
+        baseurl: http://content.example.com/rhel9.0/x86_64/dvd/BaseOS
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+        enabled: true
+        file: EX294-BaseOS
+
+    - name: Configure EX294-AppStream repository
+      ansible.builtin.yum_repository:
+        name: EX294-AppStream
+        description: "EX294 AppStream Repository"
+        baseurl: http://content.example.com/rhel9.0/x86_64/dvd/AppStream
+        gpgcheck: false
+        enabled: true
+        file: EX294-AppStream
+```
+
+**Run the playbook:**
+```bash
+ansible-playbook repos.yml
+```
+
+**Explanation:**
+- `ansible.builtin.yum_repository` writes a `.repo` file directly under
+  `/etc/yum.repos.d/` — never use `copy` for this on the exam
+- The `file:` parameter controls the `.repo` filename (without `.repo`)
+- `gpgcheck: true` requires `gpgkey:` — otherwise dnf refuses the repo
+- The module is idempotent: re-running only changes the file when a parameter
+  actually differs
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "ls /etc/yum.repos.d/EX294-*.repo"
+ansible all -b -m shell -a "dnf repolist | grep EX294"
 ```
 
 ---

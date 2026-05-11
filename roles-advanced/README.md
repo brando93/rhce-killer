@@ -360,6 +360,51 @@ Create complete infrastructure playbook that:
 
 ---
 
+### Task 21 — phpinfo + Apache mod_proxy_balancer (28 pts)
+
+Build TWO custom roles using `ansible-galaxy init` that together implement
+the classic "phpinfo backend + Apache load balancer" RHCE exercise.
+
+**Inventory groups assumed:**
+- `webservers` (node1, node2) — backend Apache + PHP nodes
+- `balancers` (control or a third node) — front-end load balancer
+
+**Role 1: `phpinfo`**
+- Location: `/home/student/ansible/roles/phpinfo`
+- Installs `httpd` and `php`
+- Drops a templated `/var/www/html/index.php` that prints
+  `<?php phpinfo(); ?>` plus the line `Backend: {{ ansible_hostname }}`
+- Opens HTTP through `firewalld` (`service: http`)
+- Starts and enables `httpd`
+- Notifies a handler `restart httpd` on config changes
+
+**Role 2: `balancer`**
+- Location: `/home/student/ansible/roles/balancer`
+- Installs `httpd`
+- Drops a templated `/etc/httpd/conf.d/balancer.conf` with a
+  `<Proxy "balancer://mycluster">` block listing **every host in
+  `groups['webservers']`** (loop over the group; do NOT hardcode IPs)
+- Configures `ProxyPass "/" "balancer://mycluster/"` and matching
+  `ProxyPassReverse`
+- Opens HTTP through `firewalld`
+- Starts and enables `httpd`
+
+**Master playbook: `site.yml`**
+- One play applies the `phpinfo` role to `webservers`
+- A second play applies the `balancer` role to `balancers`
+
+**Verification:**
+```bash
+# Backends respond directly:
+curl http://node1/index.php | grep "Backend: node1"
+curl http://node2/index.php | grep "Backend: node2"
+
+# Repeated requests to the balancer hit different backends:
+for i in 1 2 3 4; do curl -s http://control/ | grep "Backend:"; done
+```
+
+---
+
 ## Scoring
 
 | Task | Topic | Points |
@@ -384,9 +429,10 @@ Create complete infrastructure playbook that:
 | 18 | Argument Spec | 25 |
 | 19 | Collections | 22 |
 | 20 | Complex Scenario | 30 |
-| **Total** | | **436** |
+| 21 | phpinfo + mod_proxy_balancer | 28 |
+| **Total** | | **464** |
 
-**Passing score: 70% (305/436 points)**
+**Passing score: 70% (325/464 points)**
 
 ---
 
@@ -1204,6 +1250,153 @@ ansible-playbook infrastructure.yml --tags base
 19. role params
 20. include params
 21. extra vars (always win)
+
+---
+
+## Solution 21 — phpinfo + Apache mod_proxy_balancer
+
+**Create the two role skeletons:**
+```bash
+cd /home/student/ansible
+ansible-galaxy init roles/phpinfo
+ansible-galaxy init roles/balancer
+```
+
+**File: roles/phpinfo/tasks/main.yml**
+```yaml
+---
+- name: Install Apache and PHP
+  ansible.builtin.dnf:
+    name:
+      - httpd
+      - php
+    state: present
+
+- name: Deploy phpinfo page
+  ansible.builtin.template:
+    src: index.php.j2
+    dest: /var/www/html/index.php
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart httpd
+
+- name: Open HTTP in firewalld
+  ansible.posix.firewalld:
+    service: http
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Start and enable httpd
+  ansible.builtin.service:
+    name: httpd
+    state: started
+    enabled: true
+```
+
+**File: roles/phpinfo/templates/index.php.j2**
+```jinja
+<?php
+echo "Backend: {{ ansible_hostname }}<br>";
+phpinfo();
+?>
+```
+
+**File: roles/phpinfo/handlers/main.yml**
+```yaml
+---
+- name: restart httpd
+  ansible.builtin.service:
+    name: httpd
+    state: restarted
+```
+
+**File: roles/balancer/tasks/main.yml**
+```yaml
+---
+- name: Install Apache (proxy modules ship with httpd)
+  ansible.builtin.dnf:
+    name: httpd
+    state: present
+
+- name: Deploy balancer virtual host
+  ansible.builtin.template:
+    src: balancer.conf.j2
+    dest: /etc/httpd/conf.d/balancer.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart httpd
+
+- name: Open HTTP in firewalld
+  ansible.posix.firewalld:
+    service: http
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Start and enable httpd
+  ansible.builtin.service:
+    name: httpd
+    state: started
+    enabled: true
+```
+
+**File: roles/balancer/templates/balancer.conf.j2**
+```apache
+<Proxy "balancer://mycluster">
+{% for host in groups['webservers'] %}
+    BalancerMember "http://{{ hostvars[host].ansible_default_ipv4.address }}"
+{% endfor %}
+</Proxy>
+
+ProxyPass        "/" "balancer://mycluster/"
+ProxyPassReverse "/" "balancer://mycluster/"
+```
+
+**File: roles/balancer/handlers/main.yml**
+```yaml
+---
+- name: restart httpd
+  ansible.builtin.service:
+    name: httpd
+    state: restarted
+```
+
+**File: site.yml**
+```yaml
+---
+- name: Configure backend phpinfo nodes
+  hosts: webservers
+  become: true
+  roles:
+    - phpinfo
+
+- name: Configure front-end balancer
+  hosts: balancers
+  become: true
+  roles:
+    - balancer
+```
+
+**Run and verify:**
+```bash
+ansible-playbook site.yml
+curl http://node1/index.php | grep "Backend: node1"
+curl http://node2/index.php | grep "Backend: node2"
+for i in 1 2 3 4; do curl -s http://<balancer>/ | grep "Backend:"; done
+```
+
+**Explanation:**
+- The balancer template loops over `groups['webservers']` and pulls each backend's
+  IP from `hostvars` — adding/removing a backend in the inventory is the only
+  change needed to scale
+- `mod_proxy` and `mod_proxy_balancer` are loaded by Apache's default
+  configuration on RHEL/Rocky 9; no extra `LoadModule` is required
+- Notifying `restart httpd` from both `tasks/main.yml` ensures config changes
+  always take effect without forcing a restart on every run
+- Two separate plays let you assign each role to its correct host group
 
 ---
 

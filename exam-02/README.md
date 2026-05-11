@@ -243,6 +243,37 @@ Create a playbook `deploy-config.yml` that:
 
 ---
 
+### Task 11 — Cluster Inventory Report from hostvars (15 pts)
+
+Create a playbook `cluster-report.yml` that:
+- Runs on **all managed nodes**
+- Gathers facts from every host first so `hostvars` is fully populated
+- Renders a Jinja2 template `templates/cluster-info.j2` and deploys it to
+  `/etc/cluster-info.txt` on every node (`root:root`, mode `0644`)
+
+The template MUST loop over `groups['all']` and pull every value from
+`hostvars[host]` (do NOT hardcode `node1`/`node2`). Output must look like:
+
+```
+# Cluster snapshot generated at <ISO timestamp>
+# Total nodes: 2
+
+HOSTNAME             IP ADDRESS       OS                          MEMORY (MB)  CPUS
+node1.example.com    10.0.2.11        Rocky Linux 9.3             1840         2
+node2.example.com    10.0.2.12        Rocky Linux 9.3             1840         2
+```
+
+Use `| default('NONE')` on every fact lookup so the file still renders if a
+fact is missing on some host.
+
+**Verification:**
+```bash
+ansible-playbook cluster-report.yml
+ansible all -b -m shell -a "head -5 /etc/cluster-info.txt"
+```
+
+---
+
 ## Scoring
 
 | Task | Points |
@@ -257,9 +288,10 @@ Create a playbook `deploy-config.yml` that:
 | 08 — Package Management | 10 |
 | 09 — Service Management | 10 |
 | 10 — Multi-file Vault | 15 |
-| **Total** | **120** |
+| 11 — Cluster Inventory Report | 15 |
+| **Total** | **135** |
 
-**Passing score: 70% (84/120 points)**
+**Passing score: 70% (95/135 points)**
 
 ---
 
@@ -850,6 +882,69 @@ ansible-playbook deploy-config.yml --vault-password-file vault_pass_exam02.txt
 ```bash
 ansible-vault view group_vars/all/database.yml --vault-password-file vault_pass_exam02.txt
 ansible node1.example.com -m command -a "cat /etc/app/database.conf" -i inventory --become
+```
+
+---
+
+## Solution 11 — Cluster Inventory Report from hostvars
+
+**Playbook: cluster-report.yml**
+```yaml
+---
+- name: Make sure all hostvars are populated
+  hosts: all
+  gather_facts: true
+  tasks: []
+
+- name: Render cluster snapshot on every node
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Deploy cluster-info template
+      ansible.builtin.template:
+        src: templates/cluster-info.j2
+        dest: /etc/cluster-info.txt
+        owner: root
+        group: root
+        mode: '0644'
+```
+
+**Template: templates/cluster-info.j2**
+```jinja
+# Cluster snapshot generated at {{ ansible_date_time.iso8601 }}
+# Total nodes: {{ groups['all'] | length }}
+
+{{ "%-20s %-16s %-27s %-12s %s" | format("HOSTNAME", "IP ADDRESS", "OS", "MEMORY (MB)", "CPUS") }}
+{% for host in groups['all'] %}
+{{ "%-20s %-16s %-27s %-12s %s" | format(
+     host,
+     hostvars[host].ansible_default_ipv4.address | default('NONE'),
+     (hostvars[host].ansible_distribution | default('NONE')) ~ ' ' ~ (hostvars[host].ansible_distribution_version | default('')),
+     hostvars[host].ansible_memtotal_mb | default('NONE'),
+     hostvars[host].ansible_processor_vcpus | default('NONE'))
+}}
+{% endfor %}
+```
+
+**Run:**
+```bash
+ansible-playbook cluster-report.yml
+```
+
+**Explanation:**
+- The first play forces fact gathering for every host so that `hostvars[host]`
+  is populated for any host the second play might iterate over
+- The template loops `groups['all']` and reads each field via `hostvars[host]`
+  — never hardcode `node1`/`node2`
+- `| default('NONE')` keeps the file rendering even when one host failed
+  to gather a particular fact
+- `format("%-20s ...")` pads every column so output stays aligned
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "head -5 /etc/cluster-info.txt"
 ```
 
 ---

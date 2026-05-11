@@ -1,7 +1,7 @@
 # RHCE Killer — Exam 04: Linux Administration with Ansible
 
 **Duration:** 4 hours  
-**Passing Score:** 70% (84/120 points)  
+**Passing Score:** 70% (126/180 points)  
 **Focus:** System Administration Tasks using Ansible
 
 ---
@@ -294,6 +294,106 @@ Create a playbook `facts.yml` that works with system facts:
 ansible all -m setup -a "filter=ansible_local"
 ansible all -m shell -a "cat /var/log/system_report.txt"
 ansible all -m shell -a "cat /etc/motd"
+```
+
+---
+
+### Task 11: Disk Partition with parted (15 points)
+
+Create a playbook `partition.yml` that creates a primary partition on
+`/dev/sdb` (assume already attached as a 5 GB raw disk) using
+`community.general.parted`.
+
+**Requirements:**
+- Partition number: `1`
+- Partition type: `primary`
+- Filesystem label: `gpt`
+- Range: `0%` to `2GiB`
+- Format `/dev/sdb1` as `xfs` with `community.general.filesystem`
+- Persistently mount on `/mnt/data` using `ansible.posix.mount`
+- Mount point owned by `root:root`, mode `0755`
+- The whole play must be **idempotent** — re-running it cannot recreate the
+  partition or reformat the disk
+- If `/dev/sdb` is not present on a host (`ansible_devices.sdb is not defined`)
+  the disk-shaping tasks must be skipped without failing the whole run
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "lsblk /dev/sdb"
+ansible all -b -m shell -a "mount | grep /mnt/data"
+ansible all -b -m shell -a "grep /mnt/data /etc/fstab"
+```
+
+---
+
+### Task 12: Conditional LVM Provisioning (20 points)
+
+Create a playbook `lvm-conditional.yml` that creates an LVM logical volume
+**only when the underlying disk is suitable**. The play must support three
+branches, each driven by `when:`.
+
+Variables to define at the top of the playbook:
+```yaml
+target_disk: sdc
+vg_name: vg_data
+lv_name: lv_app
+desired_size_mb: 1500
+mount_point: /mnt/app
+fs_type: xfs
+```
+
+**Required behavior:**
+
+1. If `ansible_devices[target_disk]` **is not defined** → print
+   `"Disk {{ target_disk }} not present, skipping"` and end the play for that
+   host using `ansible.builtin.meta: end_host` (no failures).
+
+2. If the disk exists but its size in MB is **less than** `desired_size_mb` →
+   fail the play **for that host** with `ansible.builtin.fail` and the
+   message `"Disk too small: needed XXXMB, got YYYMB"`.
+
+3. If the disk exists and is `>= desired_size_mb` MB → create the VG, the LV
+   at exactly `desired_size_mb` MB, format it `xfs`, and mount it persistently
+   at `mount_point`.
+
+You must compute the disk size with `set_fact` from
+`ansible_devices[target_disk].sectors * sectorsize / (1024*1024)` so the
+comparison is purely numeric.
+
+**Verification:**
+```bash
+ansible-playbook lvm-conditional.yml
+# On a host with /dev/sdc >= 1500 MB:
+ansible all -b -m shell -a "lvs vg_data"
+ansible all -b -m shell -a "mount | grep /mnt/app"
+```
+
+---
+
+### Task 13: Static NIC with rhel-system-roles.network (15 points)
+
+Create a playbook `network-static.yml` that uses `rhel-system-roles.network`
+to declare a NetworkManager connection profile on **all managed nodes** for a
+**secondary** interface.
+
+**Requirements:**
+- Install `rhel-system-roles` if missing
+- Use `include_role` (not the `roles:` keyword) so you can guard it with `when:`
+- Connection name: `static-eth1`, interface `eth1`, type `ethernet`, autoconnect
+- Each host gets a unique IP from `192.0.2.100/24` upward
+  (use `ansible_play_hosts.index(inventory_hostname)` to compute the offset)
+- Gateway `192.0.2.1`, DNS `192.0.2.53` and `8.8.8.8`, DNS search
+  `lab.example.com`
+- Skip the role on hosts that do not have `eth1` (`ansible_eth1 is not defined`)
+- The play must be idempotent
+
+> ⚠️ **Do NOT** apply this to the primary management NIC — always target a
+> secondary interface, or you will lose SSH connectivity mid-play.
+
+**Verification:**
+```bash
+ansible all -b -m shell -a "nmcli connection show static-eth1"
+ansible all -b -m shell -a "ip -4 addr show eth1"
 ```
 
 ---
@@ -1362,6 +1462,236 @@ ansible all -m shell -a "cat /var/log/system_report.txt"
 ansible all -m shell -a "cat /etc/motd"
 ansible all -m shell -a "cat /etc/ansible/facts.d/system_info.fact"
 ```
+
+---
+
+## Task 11: Disk Partition with parted
+
+**File:** `partition.yml`
+```yaml
+---
+- name: Create and mount a partition on /dev/sdb
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Skip hosts that do not have /dev/sdb
+      ansible.builtin.debug:
+        msg: "/dev/sdb not present on {{ inventory_hostname }} — skipping"
+      when: ansible_devices.sdb is not defined
+
+    - name: Create a 2GiB primary partition on /dev/sdb
+      community.general.parted:
+        device: /dev/sdb
+        number: 1
+        state: present
+        label: gpt
+        part_type: primary
+        part_start: 0%
+        part_end: 2GiB
+      when: ansible_devices.sdb is defined
+
+    - name: Format the new partition as XFS
+      community.general.filesystem:
+        fstype: xfs
+        dev: /dev/sdb1
+      when: ansible_devices.sdb is defined
+
+    - name: Ensure /mnt/data exists
+      ansible.builtin.file:
+        path: /mnt/data
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: ansible_devices.sdb is defined
+
+    - name: Persistently mount /dev/sdb1 at /mnt/data
+      ansible.posix.mount:
+        path: /mnt/data
+        src: /dev/sdb1
+        fstype: xfs
+        opts: defaults
+        state: mounted
+      when: ansible_devices.sdb is defined
+```
+
+### Run and verify
+```bash
+ansible-playbook partition.yml
+ansible all -b -m shell -a "lsblk /dev/sdb"
+ansible all -b -m shell -a "mount | grep /mnt/data"
+ansible all -b -m shell -a "grep /mnt/data /etc/fstab"
+```
+
+**Notes:**
+- `community.general.parted` is idempotent — it inspects the partition table
+  before acting, so re-running the play is safe
+- `part_start: 0%` / `part_end: 2GiB` is the canonical way to size partitions;
+  do NOT pass plain bytes
+- `community.general.filesystem` will not reformat a disk that already has
+  the requested filesystem
+- `ansible.posix.mount` with `state: mounted` mounts the FS now AND adds the
+  `/etc/fstab` entry needed for persistence
+
+---
+
+## Task 12: Conditional LVM Provisioning
+
+**File:** `lvm-conditional.yml`
+```yaml
+---
+- name: Conditionally create LVM on a target disk
+  hosts: all
+  become: true
+
+  vars:
+    target_disk: sdc
+    vg_name: vg_data
+    lv_name: lv_app
+    desired_size_mb: 1500
+    mount_point: /mnt/app
+    fs_type: xfs
+
+  tasks:
+    - name: Skip host when target disk is missing
+      ansible.builtin.debug:
+        msg: "Disk {{ target_disk }} not present, skipping"
+      when: ansible_devices[target_disk] is not defined
+
+    - name: End play on hosts without the disk
+      ansible.builtin.meta: end_host
+      when: ansible_devices[target_disk] is not defined
+
+    - name: Compute target disk size in MB
+      ansible.builtin.set_fact:
+        target_disk_size_mb: >-
+          {{ (ansible_devices[target_disk].sectors | int *
+              ansible_devices[target_disk].sectorsize | int)
+              // (1024 * 1024) }}
+
+    - name: Fail when the disk is smaller than required
+      ansible.builtin.fail:
+        msg: "Disk too small: needed {{ desired_size_mb }}MB, got {{ target_disk_size_mb }}MB"
+      when: target_disk_size_mb | int < desired_size_mb | int
+
+    - name: Create volume group on the target disk
+      community.general.lvg:
+        vg: "{{ vg_name }}"
+        pvs: "/dev/{{ target_disk }}"
+        state: present
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Create logical volume
+      community.general.lvol:
+        vg: "{{ vg_name }}"
+        lv: "{{ lv_name }}"
+        size: "{{ desired_size_mb }}"
+        state: present
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Make filesystem on the LV
+      community.general.filesystem:
+        fstype: "{{ fs_type }}"
+        dev: "/dev/{{ vg_name }}/{{ lv_name }}"
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Ensure mount point exists
+      ansible.builtin.file:
+        path: "{{ mount_point }}"
+        state: directory
+        mode: '0755'
+      when: target_disk_size_mb | int >= desired_size_mb | int
+
+    - name: Mount the LV persistently
+      ansible.posix.mount:
+        path: "{{ mount_point }}"
+        src: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: "{{ fs_type }}"
+        state: mounted
+      when: target_disk_size_mb | int >= desired_size_mb | int
+```
+
+### Run and verify
+```bash
+ansible-playbook lvm-conditional.yml
+# On a host where /dev/sdc >= 1500 MB:
+ansible all -b -m shell -a "lvs vg_data"
+ansible all -b -m shell -a "mount | grep /mnt/app"
+```
+
+**Notes:**
+- `is not defined` against `ansible_devices[target_disk]` short-circuits hosts
+  that don't have the disk
+- `ansible.builtin.meta: end_host` ends the play **per host** without
+  failing the run — the cleanest way to "skip and continue"
+- We compute size from `sectors * sectorsize` because the `size` string
+  (`"5.00 GB"`) is locale-flavored and harder to compare numerically
+- Every storage task carries the same `when:` guard, so running against a
+  mixed inventory is safe
+
+---
+
+## Task 13: Static NIC with rhel-system-roles.network
+
+**File:** `network-static.yml`
+```yaml
+---
+- name: Configure static NIC with rhel-system-roles.network
+  hosts: all
+  become: true
+
+  pre_tasks:
+    - name: Ensure rhel-system-roles is installed
+      ansible.builtin.dnf:
+        name: rhel-system-roles
+        state: present
+
+  vars:
+    network_connections:
+      - name: static-eth1
+        state: up
+        type: ethernet
+        interface_name: eth1
+        autoconnect: true
+        ip:
+          address:
+            - "192.0.2.{{ 100 + ansible_play_hosts.index(inventory_hostname) }}/24"
+          gateway4: 192.0.2.1
+          dns:
+            - 192.0.2.53
+            - 8.8.8.8
+          dns_search:
+            - lab.example.com
+
+  tasks:
+    - name: Apply network role only if eth1 exists
+      ansible.builtin.include_role:
+        name: rhel-system-roles.network
+      when: ansible_eth1 is defined
+```
+
+### Run and verify
+```bash
+ansible-playbook network-static.yml --check
+ansible-playbook network-static.yml
+ansible all -b -m shell -a "nmcli connection show static-eth1"
+ansible all -b -m shell -a "ip -4 addr show eth1"
+```
+
+**Notes:**
+- `rhel-system-roles.network` consumes one variable, `network_connections`,
+  which is a list of connection-profile dicts — one per NIC
+- We bake the role into the play with `include_role` instead of the `roles:`
+  keyword so we can wrap it in `when:` (the `roles:` keyword runs
+  unconditionally per host)
+- `ansible_play_hosts.index(inventory_hostname)` gives a stable per-host
+  offset so each node gets a unique IP without hardcoding addresses
+- The role is **idempotent** — re-running reconciles the NetworkManager
+  profile in place; it will not flap the interface if nothing changed
+- ⚠️ Never apply this role to the **primary management NIC** (the one
+  Ansible is using to reach the host) — always target a secondary interface,
+  or you will lose SSH mid-play
 
 ---
 
