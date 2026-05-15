@@ -4,16 +4,18 @@
 # Exam: Jinja2 Advanced (20 tasks, 366 points)
 # Passing score: 70% (256 points)
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
 
-# Counters
 TOTAL_POINTS=0
-MAX_POINTS=366
+MAX_POINTS=388
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
 TASKS_PASSED=0
 TASKS_FAILED=0
 TOTAL_TASKS=20
@@ -29,57 +31,6 @@ declare -a FAILED_HINTS
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}RHCE Killer - Jinja2 Advanced Grading${NC}"
 echo -e "${CYAN}========================================${NC}\n"
-
-# Function to check a condition
-check() {
-    local description="$1"
-    local points="$2"
-    local command="$3"
-    local hint="$4"
-    
-    echo -n "Checking: $description... "
-    
-    if eval "$command" &>/dev/null; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
-
-# Function to check ansible ad-hoc command result
-ansible_check() {
-    local description="$1"
-    local points="$2"
-    local host="$3"
-    local module="$4"
-    local args="$5"
-    local grep_pattern="$6"
-    local hint="$7"
-    
-    echo -n "Checking: $description... "
-    
-    local result=$(ansible "$host" -m "$module" -a "$args" 2>/dev/null)
-    
-    if echo "$result" | grep -q "$grep_pattern"; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
 
 echo -e "${YELLOW}Task 01: Regex Replace Filter (15 pts)${NC}"
 check "playbook template-regex.yml exists" 3 \
@@ -507,6 +458,40 @@ check "template has nested loops" 5 \
 ansible_check "file contains structured output" 5 \
     "node1.example.com" "command" "cat /tmp/infrastructure.txt" "production.*web.*database.*staging" \
     "Result should show all environments and server types"
+
+echo ""
+echo -e "${YELLOW}Task 21: Cluster Inventory Report from hostvars (22 pts)${NC}"
+check "playbook cluster-report.yml exists" 2 \
+    "test -f $ANSIBLE_DIR/cluster-report.yml" \
+    "Create: $ANSIBLE_DIR/cluster-report.yml"
+
+check "template cluster-info.j2 exists" 2 \
+    "test -f $TEMPLATES_DIR/cluster-info.j2" \
+    "Create: $TEMPLATES_DIR/cluster-info.j2"
+
+check "template loops over groups['all']" 4 \
+    "grep -qE \"for[[:space:]]+\\w+[[:space:]]+in[[:space:]]+groups\\\\['all'\\\\]\" $TEMPLATES_DIR/cluster-info.j2" \
+    "Use: {% for host in groups['all'] %} ... {% endfor %}"
+
+check "template reads from hostvars[]" 3 \
+    "grep -q 'hostvars\\[' $TEMPLATES_DIR/cluster-info.j2" \
+    "Pull each fact via hostvars[host].<fact>"
+
+check "template uses default('NONE') filter" 2 \
+    "grep -q \"default('NONE')\" $TEMPLATES_DIR/cluster-info.j2" \
+    "Guard every fact lookup with | default('NONE')"
+
+check "playbook gathers facts" 2 \
+    "grep -qE 'gather_facts:[[:space:]]*(true|yes)' $ANSIBLE_DIR/cluster-report.yml" \
+    "First play needs gather_facts: true so hostvars[] is populated for all hosts"
+
+ansible_check "/etc/cluster-info.txt deployed" 4 \
+    "all" "shell" "test -f /etc/cluster-info.txt" "" \
+    "Use ansible.builtin.template to write /etc/cluster-info.txt on every host"
+
+ansible_check "cluster-info.txt lists every host" 3 \
+    "node1.example.com" "shell" "grep -c node /etc/cluster-info.txt" "[2-9]" \
+    "The file must contain a line per host in groups['all']"
 
 # Summary
 echo ""

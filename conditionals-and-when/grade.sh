@@ -9,65 +9,19 @@ cd "$ANSIBLE_DIR" || { echo "ERROR: $ANSIBLE_DIR not found"; exit 1; }
 
 EXAM_NAME="conditionals-and-when"
 EXAM_TITLE="Conditionals And When"
-TOTAL_POINTS=187
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
+TOTAL_POINTS=207
 
-PASS=0
-FAIL=0
-TOTAL=0
-RESULTS=()
-FAILED_TASKS=()
 
 # ── Colors ──
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'
-
-check() {
-  local DESC="$1"
-  local PTS="$2"
-  local CMD="$3"
-  local HINT="${4:-}"
-  TOTAL=$((TOTAL + PTS))
-
-  if eval "$CMD" &>/dev/null; then
-    echo -e "  ${GREEN}[PASS]${NC} (+${PTS}pts) $DESC"
-    PASS=$((PASS + PTS))
-    RESULTS+=("PASS|$PTS|$DESC")
-  else
-    echo -e "  ${RED}[FAIL]${NC} (  0pts) $DESC"
-    if [ -n "$HINT" ]; then
-      echo -e "    ${YELLOW}→ Hint:${NC} $HINT"
-    fi
-    FAIL=$((FAIL + PTS))
-    RESULTS+=("FAIL|0|$DESC")
-    FAILED_TASKS+=("$DESC|$HINT")
-  fi
-}
-
-ansible_check() {
-  local DESC="$1"
-  local PTS="$2"
-  local HOST="$3"
-  local MODULE="$4"
-  local ARGS="$5"
-  local GREP="$6"
-  local HINT="${7:-}"
-
-  TOTAL=$((TOTAL + PTS))
-  OUTPUT=$(ansible "$HOST" -m "$MODULE" -a "$ARGS" 2>/dev/null)
-  if echo "$OUTPUT" | grep -q "$GREP"; then
-    echo -e "  ${GREEN}[PASS]${NC} (+${PTS}pts) $DESC"
-    PASS=$((PASS + PTS))
-    RESULTS+=("PASS|$PTS|$DESC")
-  else
-    echo -e "  ${RED}[FAIL]${NC} (  0pts) $DESC"
-    if [ -n "$HINT" ]; then
-      echo -e "    ${YELLOW}→ Hint:${NC} $HINT"
-    fi
-    FAIL=$((FAIL + PTS))
-    RESULTS+=("FAIL|0|$DESC")
-    FAILED_TASKS+=("$DESC|$HINT")
-  fi
-}
 
 echo ""
 echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════${NC}"
@@ -371,6 +325,38 @@ check "playbook uses 'not in' with list" 3 \
   "grep -q 'not in allowed_hosts' $ANSIBLE_DIR/when-list.yml" \
   "Use: when: inventory_hostname not in allowed_hosts"
 
+echo ""
+# ─────────────────────────────────────────────
+echo -e "${BOLD}Task 16 — Conditional LVM Provisioning (20 pts)${NC}"
+# ─────────────────────────────────────────────
+check "lvm-conditional.yml exists" 2 \
+  "test -f $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Create playbook: lvm-conditional.yml"
+check "Defines target_disk variable" 2 \
+  "grep -qE 'target_disk:' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Define target_disk variable at the top of the playbook"
+check "Uses 'is not defined' guard" 3 \
+  "grep -q 'is not defined' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Skip hosts where ansible_devices[target_disk] is not defined"
+check "Uses meta: end_host" 3 \
+  "grep -q 'end_host' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Use ansible.builtin.meta: end_host to cleanly skip a host"
+check "Uses ansible.builtin.fail" 2 \
+  "grep -qE 'ansible.builtin.fail|^[[:space:]]+fail:' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Use ansible.builtin.fail when disk is smaller than desired_size_mb"
+check "set_fact computes size from sectors" 3 \
+  "grep -q 'set_fact' $ANSIBLE_DIR/lvm-conditional.yml && grep -q 'sectors' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Use set_fact: target_disk_size_mb based on sectors * sectorsize"
+check "Uses community.general.lvg" 2 \
+  "grep -qE 'community.general.lvg|^[[:space:]]+lvg:' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Use community.general.lvg to create the volume group"
+check "Uses community.general.lvol" 2 \
+  "grep -qE 'community.general.lvol|^[[:space:]]+lvol:' $ANSIBLE_DIR/lvm-conditional.yml" \
+  "Use community.general.lvol for the logical volume"
+check "Playbook syntax check passes" 1 \
+  "ansible-playbook $ANSIBLE_DIR/lvm-conditional.yml --syntax-check &>/dev/null" \
+  "Run: ansible-playbook lvm-conditional.yml --syntax-check"
+
 # ─────────────────────────────────────────────
 # Final Results
 # ─────────────────────────────────────────────
@@ -389,7 +375,7 @@ if [ $PERCENTAGE -ge 70 ]; then
 else
   echo -e "  ${RED}${BOLD}✗ FAIL${NC} — You scored ${BOLD}${PASS}/${TOTAL}${NC} points (${PERCENTAGE}%)"
   echo ""
-  echo -e "  ${YELLOW}You need 70% to pass (131/187 points).${NC}"
+  echo -e "  ${YELLOW}You need 70% to pass (145/207 points).${NC}"
 fi
 
 echo ""

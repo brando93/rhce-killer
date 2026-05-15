@@ -4,16 +4,18 @@
 # Exam: Roles Advanced (20 tasks, 436 points)
 # Passing score: 70% (305 points)
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
 
-# Counters
 TOTAL_POINTS=0
-MAX_POINTS=436
+MAX_POINTS=464
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
 TASKS_PASSED=0
 TASKS_FAILED=0
 TOTAL_TASKS=20
@@ -29,57 +31,6 @@ declare -a FAILED_HINTS
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}RHCE Killer - Roles Advanced Grading${NC}"
 echo -e "${CYAN}========================================${NC}\n"
-
-# Function to check a condition
-check() {
-    local description="$1"
-    local points="$2"
-    local command="$3"
-    local hint="$4"
-    
-    echo -n "Checking: $description... "
-    
-    if eval "$command" &>/dev/null; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
-
-# Function to check ansible ad-hoc command result
-ansible_check() {
-    local description="$1"
-    local points="$2"
-    local host="$3"
-    local module="$4"
-    local args="$5"
-    local grep_pattern="$6"
-    local hint="$7"
-    
-    echo -n "Checking: $description... "
-    
-    local result=$(ansible "$host" -m "$module" -a "$args" 2>/dev/null)
-    
-    if echo "$result" | grep -q "$grep_pattern"; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
 
 echo -e "${YELLOW}Task 01: Role with include_role (20 pts)${NC}"
 check "playbook dynamic-roles.yml exists" 5 \
@@ -379,6 +330,56 @@ check "playbook has conditionals" 5 \
 check "playbook demonstrates advanced concepts" 5 \
     "find $ANSIBLE_DIR -name '*.yml' -exec grep -l 'roles:' {} \\; | xargs grep -E 'pre_tasks:|post_tasks:|when:|tags:' | wc -l | grep -q '[4-9]'" \
     "Demonstrate: multiple advanced concepts"
+
+echo ""
+echo -e "${YELLOW}Task 21: phpinfo + Apache mod_proxy_balancer (28 pts)${NC}"
+check "Role roles/phpinfo exists" 2 \
+    "test -d $ANSIBLE_DIR/roles/phpinfo" \
+    "Create with: ansible-galaxy init roles/phpinfo"
+
+check "Role roles/balancer exists" 2 \
+    "test -d $ANSIBLE_DIR/roles/balancer" \
+    "Create with: ansible-galaxy init roles/balancer"
+
+check "phpinfo template index.php.j2 exists" 2 \
+    "test -f $ANSIBLE_DIR/roles/phpinfo/templates/index.php.j2" \
+    "Create roles/phpinfo/templates/index.php.j2 with phpinfo()"
+
+check "phpinfo template prints backend hostname" 2 \
+    "grep -q 'Backend' $ANSIBLE_DIR/roles/phpinfo/templates/index.php.j2" \
+    "Print 'Backend: {{ ansible_hostname }}' so balancer behavior is visible"
+
+check "balancer template exists" 2 \
+    "test -f $ANSIBLE_DIR/roles/balancer/templates/balancer.conf.j2" \
+    "Create roles/balancer/templates/balancer.conf.j2"
+
+check "balancer template uses mod_proxy_balancer syntax" 3 \
+    "grep -q 'balancer://' $ANSIBLE_DIR/roles/balancer/templates/balancer.conf.j2" \
+    "Use <Proxy \"balancer://mycluster\"> ... </Proxy>"
+
+check "balancer template loops over groups['webservers']" 4 \
+    "grep -qE \"for[[:space:]]+\\w+[[:space:]]+in[[:space:]]+groups\\\\['webservers'\\\\]\" $ANSIBLE_DIR/roles/balancer/templates/balancer.conf.j2" \
+    "Loop: {% for host in groups['webservers'] %} ... {% endfor %}"
+
+check "balancer template uses ProxyPass directives" 2 \
+    "grep -q 'ProxyPass' $ANSIBLE_DIR/roles/balancer/templates/balancer.conf.j2" \
+    "Add ProxyPass and ProxyPassReverse directives"
+
+check "site.yml master playbook exists" 2 \
+    "test -f $ANSIBLE_DIR/site.yml" \
+    "Create site.yml with two plays: phpinfo on webservers, balancer on balancers"
+
+check "site.yml targets webservers and balancers groups" 3 \
+    "grep -q 'webservers' $ANSIBLE_DIR/site.yml && grep -q 'balancers' $ANSIBLE_DIR/site.yml" \
+    "Each role goes to its own host group"
+
+check "Both roles use firewalld to open http" 2 \
+    "grep -qE 'firewalld' $ANSIBLE_DIR/roles/phpinfo/tasks/main.yml && grep -qE 'firewalld' $ANSIBLE_DIR/roles/balancer/tasks/main.yml" \
+    "Open HTTP through firewalld in both roles"
+
+check "Both roles notify restart httpd handler" 2 \
+    "grep -q 'notify' $ANSIBLE_DIR/roles/phpinfo/tasks/main.yml && grep -q 'restart httpd' $ANSIBLE_DIR/roles/phpinfo/handlers/main.yml" \
+    "Add notify: restart httpd and matching handler"
 
 # Summary
 echo ""

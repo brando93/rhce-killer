@@ -2,19 +2,23 @@
 
 # RHCE Killer - System Administration Grading Script
 # Exam: Complete System Administration with Ansible
-# Total Points: 289
-# Passing Score: 70% (202/289)
+# Total Points: 345
+# Passing Score: 70% (242/345)
 
 # Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
 
 # Counters
 TOTAL_POINTS=0
-MAX_POINTS=289
+MAX_POINTS=345
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
 TASK_COUNT=0
 PASSED_TASKS=0
 
@@ -22,58 +26,7 @@ PASSED_TASKS=0
 ANSIBLE_DIR="/home/student/ansible"
 
 # Helper function to check conditions
-check() {
-    local DESC="$1"
-    local POINTS=$2
-    local CMD="$3"
-    local HINT="$4"
-    
-    TASK_COUNT=$((TASK_COUNT + 1))
-    echo -e "\n${CYAN}Task $TASK_COUNT: $DESC${NC}"
-    
-    if eval "$CMD" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ PASS${NC} (+$POINTS points)"
-        TOTAL_POINTS=$((TOTAL_POINTS + POINTS))
-        PASSED_TASKS=$((PASSED_TASKS + 1))
-        return 0
-    else
-        echo -e "${RED}✗ FAIL${NC} (0 points)"
-        if [ -n "$HINT" ]; then
-            echo -e "${YELLOW}Hint: $HINT${NC}"
-        fi
-        return 1
-    fi
-}
-
 # Helper function for ansible checks
-ansible_check() {
-    local DESC="$1"
-    local POINTS=$2
-    local HOST="$3"
-    local MODULE="$4"
-    local ARGS="$5"
-    local GREP="$6"
-    local HINT="$7"
-    
-    TASK_COUNT=$((TASK_COUNT + 1))
-    echo -e "\n${CYAN}Task $TASK_COUNT: $DESC${NC}"
-    
-    local OUTPUT=$(ansible "$HOST" -m "$MODULE" -a "$ARGS" 2>/dev/null)
-    
-    if echo "$OUTPUT" | grep -q "$GREP"; then
-        echo -e "${GREEN}✓ PASS${NC} (+$POINTS points)"
-        TOTAL_POINTS=$((TOTAL_POINTS + POINTS))
-        PASSED_TASKS=$((PASSED_TASKS + 1))
-        return 0
-    else
-        echo -e "${RED}✗ FAIL${NC} (0 points)"
-        if [ -n "$HINT" ]; then
-            echo -e "${YELLOW}Hint: $HINT${NC}"
-        fi
-        return 1
-    fi
-}
-
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║                                                            ║${NC}"
 echo -e "${CYAN}║         RHCE KILLER - SYSTEM ADMINISTRATION EXAM           ║${NC}"
@@ -595,6 +548,111 @@ check "Creates virtual host config" 3 \
 check "Configures SSL" 3 \
     "grep -q 'openssl' webserver-stack.yml || grep -q 'mod_ssl' webserver-stack.yml" \
     "Configure SSL certificates"
+
+# ============================================================================
+# TASK 16 - Yum/DNF Repositories (18 pts)
+# ============================================================================
+echo -e "\n${CYAN}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}TASK 16: Yum/DNF Repositories (18 points)${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+
+check "Playbook repos.yml exists" 2 \
+    "test -f repos.yml" \
+    "Create repos.yml using ansible.builtin.yum_repository"
+
+check "Playbook uses yum_repository module" 3 \
+    "grep -q 'yum_repository' repos.yml" \
+    "Use ansible.builtin.yum_repository (NOT copy of static .repo files)"
+
+check "EX294-BaseOS .repo on managed nodes" 4 \
+    "ansible all -b -m shell -a 'test -f /etc/yum.repos.d/EX294-BaseOS.repo' &>/dev/null" \
+    "Set 'file: EX294-BaseOS' parameter so the .repo file is named correctly"
+
+check "EX294-AppStream .repo on managed nodes" 4 \
+    "ansible all -b -m shell -a 'test -f /etc/yum.repos.d/EX294-AppStream.repo' &>/dev/null" \
+    "Set 'file: EX294-AppStream' parameter"
+
+check "Both repos enabled in dnf repolist" 3 \
+    "ansible all -b -m shell -a 'dnf repolist 2>/dev/null | grep -E \"EX294-BaseOS|EX294-AppStream\" | wc -l | grep -q 2' &>/dev/null" \
+    "Set enabled: true on both repositories"
+
+check "Playbook is idempotent" 2 \
+    "ansible-playbook repos.yml --check &>/dev/null" \
+    "Re-running the play should produce no changes"
+
+# ============================================================================
+# TASK 17 - Disk Partition with parted (20 pts)
+# ============================================================================
+echo -e "\n${CYAN}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}TASK 17: Disk Partition with parted (20 points)${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+
+check "Playbook partition.yml exists" 2 \
+    "test -f partition.yml" \
+    "Create partition.yml using community.general.parted"
+
+check "Playbook uses community.general.parted" 3 \
+    "grep -qE 'community.general.parted|^[[:space:]]+parted:' partition.yml" \
+    "Use community.general.parted (NOT shell parted commands)"
+
+check "Playbook uses community.general.filesystem" 2 \
+    "grep -qE 'community.general.filesystem|^[[:space:]]+filesystem:' partition.yml" \
+    "Format /dev/sdb1 as xfs with community.general.filesystem"
+
+check "Playbook uses ansible.posix.mount" 2 \
+    "grep -qE 'ansible.posix.mount|^[[:space:]]+mount:' partition.yml" \
+    "Persist the mount with ansible.posix.mount state: mounted"
+
+check "Guard for missing disk (ansible_devices.sdb)" 2 \
+    "grep -qE 'ansible_devices.sdb' partition.yml" \
+    "Add when: ansible_devices.sdb is defined to skip hosts without /dev/sdb"
+
+check "/dev/sdb1 mounted at /mnt/data (where disk exists)" 4 \
+    "ansible all -b -m shell -a 'mount | grep -q \"/dev/sdb1 on /mnt/data\"' &>/dev/null || true" \
+    "Only graded on hosts with /dev/sdb; PASS if any host has it mounted"
+
+check "/etc/fstab entry exists (where disk exists)" 3 \
+    "ansible all -b -m shell -a 'grep -q /mnt/data /etc/fstab' &>/dev/null || true" \
+    "ansible.posix.mount state: mounted writes the fstab entry automatically"
+
+check "Filesystem on /dev/sdb1 is xfs (where disk exists)" 2 \
+    "ansible all -b -m shell -a 'lsblk -no FSTYPE /dev/sdb1 | grep -q xfs' &>/dev/null || true" \
+    "Use community.general.filesystem fstype: xfs"
+
+# ============================================================================
+# TASK 18 - Static NIC via rhel-system-roles.network (18 pts)
+# ============================================================================
+echo -e "\n${CYAN}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${CYAN}TASK 18: Static NIC via rhel-system-roles.network (18 points)${NC}"
+echo -e "${CYAN}═══════════════════════════════════════════════════════════${NC}"
+
+check "Playbook network-static.yml exists" 2 \
+    "test -f network-static.yml" \
+    "Create network-static.yml using rhel-system-roles.network"
+
+check "Playbook installs rhel-system-roles" 2 \
+    "grep -qE 'rhel-system-roles' network-static.yml && grep -qE 'state:[[:space:]]*present' network-static.yml" \
+    "pre_tasks: ensure the rhel-system-roles package is present"
+
+check "Uses rhel-system-roles.network role" 4 \
+    "grep -qE 'rhel-system-roles.network|rhel_system_roles.network' network-static.yml" \
+    "Use the role rhel-system-roles.network (or redhat.rhel_system_roles.network)"
+
+check "Uses include_role with when guard" 4 \
+    "grep -q 'include_role' network-static.yml && grep -q 'when:' network-static.yml" \
+    "include_role + when: ansible_eth1 is defined to safely skip hosts"
+
+check "Defines network_connections variable" 3 \
+    "grep -q 'network_connections' network-static.yml" \
+    "Pass connection profile via network_connections list"
+
+check "Uses ansible_play_hosts for per-host IP offset" 2 \
+    "grep -q 'ansible_play_hosts' network-static.yml" \
+    "Use ansible_play_hosts.index(inventory_hostname) so each node gets a unique IP"
+
+check "Connection 'static-eth1' created (where eth1 exists)" 1 \
+    "ansible all -b -m shell -a 'nmcli connection show static-eth1' &>/dev/null || true" \
+    "Only graded on hosts with eth1; PASS if at least one host has it"
 
 # ============================================================================
 # FINAL RESULTS
