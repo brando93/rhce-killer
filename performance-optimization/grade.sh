@@ -4,16 +4,18 @@
 # Exam: Performance Optimization (15 tasks, 244 points)
 # Passing score: 70% (171 points)
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
 
-# Counters
 TOTAL_POINTS=0
 MAX_POINTS=244
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
 TASKS_PASSED=0
 TASKS_FAILED=0
 TOTAL_TASKS=15
@@ -28,29 +30,6 @@ declare -a FAILED_HINTS
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}RHCE Killer - Performance Optimization${NC}"
 echo -e "${CYAN}========================================${NC}\n"
-
-# Function to check a condition
-check() {
-    local description="$1"
-    local points="$2"
-    local command="$3"
-    local hint="$4"
-    
-    echo -n "Checking: $description... "
-    
-    if eval "$command" &>/dev/null; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
 
 echo -e "${YELLOW}Task 01: Async Task Execution (15 pts)${NC}"
 check "playbook async-basic.yml exists" 5 \

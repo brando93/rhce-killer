@@ -9,65 +9,19 @@ cd "$ANSIBLE_DIR" || { echo "ERROR: $ANSIBLE_DIR not found"; exit 1; }
 
 EXAM_NAME="blocks-and-error-handling"
 EXAM_TITLE="Blocks And Error Handling"
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
 TOTAL_POINTS=215
 
-PASS=0
-FAIL=0
-TOTAL=0
-RESULTS=()
-FAILED_TASKS=()
 
 # ── Colors ──
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; NC='\033[0m'; BOLD='\033[1m'
-
-check() {
-  local DESC="$1"
-  local PTS="$2"
-  local CMD="$3"
-  local HINT="${4:-}"
-  TOTAL=$((TOTAL + PTS))
-
-  if eval "$CMD" &>/dev/null; then
-    echo -e "  ${GREEN}[PASS]${NC} (+${PTS}pts) $DESC"
-    PASS=$((PASS + PTS))
-    RESULTS+=("PASS|$PTS|$DESC")
-  else
-    echo -e "  ${RED}[FAIL]${NC} (  0pts) $DESC"
-    if [ -n "$HINT" ]; then
-      echo -e "    ${YELLOW}→ Hint:${NC} $HINT"
-    fi
-    FAIL=$((FAIL + PTS))
-    RESULTS+=("FAIL|0|$DESC")
-    FAILED_TASKS+=("$DESC|$HINT")
-  fi
-}
-
-ansible_check() {
-  local DESC="$1"
-  local PTS="$2"
-  local HOST="$3"
-  local MODULE="$4"
-  local ARGS="$5"
-  local GREP="$6"
-  local HINT="${7:-}"
-
-  TOTAL=$((TOTAL + PTS))
-  OUTPUT=$(ansible "$HOST" -m "$MODULE" -a "$ARGS" 2>/dev/null)
-  if echo "$OUTPUT" | grep -q "$GREP"; then
-    echo -e "  ${GREEN}[PASS]${NC} (+${PTS}pts) $DESC"
-    PASS=$((PASS + PTS))
-    RESULTS+=("PASS|$PTS|$DESC")
-  else
-    echo -e "  ${RED}[FAIL]${NC} (  0pts) $DESC"
-    if [ -n "$HINT" ]; then
-      echo -e "    ${YELLOW}→ Hint:${NC} $HINT"
-    fi
-    FAIL=$((FAIL + PTS))
-    RESULTS+=("FAIL|0|$DESC")
-    FAILED_TASKS+=("$DESC|$HINT")
-  fi
-}
 
 echo ""
 echo -e "${BOLD}${CYAN}═══════════════════════════════════════════════════${NC}"

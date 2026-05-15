@@ -4,16 +4,18 @@
 # Exam: Roles Basics (15 tasks, 263 points)
 # Passing score: 70% (184 points)
 
-# Color codes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
 
-# Counters
 TOTAL_POINTS=0
 MAX_POINTS=263
+# ───── shared helpers (color codes, check(), counters, print_summary) ─
+# Probe standard locations: local repo and ~/exams/lib on the control node.
+for _LIB in \
+    "$(dirname "$0")/../../lib/grade-helpers.sh" \
+    "$(dirname "$0")/../scripts/lib/grade-helpers.sh" \
+    "$(dirname "$0")/../lib/grade-helpers.sh"; do
+    [ -f "$_LIB" ] && { source "$_LIB"; break; }
+done
+unset _LIB
 TASKS_PASSED=0
 TASKS_FAILED=0
 TOTAL_TASKS=15
@@ -29,57 +31,6 @@ declare -a FAILED_HINTS
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}RHCE Killer - Roles Basics Grading${NC}"
 echo -e "${CYAN}========================================${NC}\n"
-
-# Function to check a condition
-check() {
-    local description="$1"
-    local points="$2"
-    local command="$3"
-    local hint="$4"
-    
-    echo -n "Checking: $description... "
-    
-    if eval "$command" &>/dev/null; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
-
-# Function to check ansible ad-hoc command result
-ansible_check() {
-    local description="$1"
-    local points="$2"
-    local host="$3"
-    local module="$4"
-    local args="$5"
-    local grep_pattern="$6"
-    local hint="$7"
-    
-    echo -n "Checking: $description... "
-    
-    local result=$(ansible "$host" -m "$module" -a "$args" 2>/dev/null)
-    
-    if echo "$result" | grep -q "$grep_pattern"; then
-        echo -e "${GREEN}PASS${NC} (+${points} pts)"
-        ((TOTAL_POINTS += points))
-        ((TASKS_PASSED++))
-        return 0
-    else
-        echo -e "${RED}FAIL${NC} (0 pts)"
-        ((TASKS_FAILED++))
-        FAILED_TASKS+=("$description")
-        FAILED_HINTS+=("$hint")
-        return 1
-    fi
-}
 
 echo -e "${YELLOW}Task 01: Create Basic Role Structure (15 pts)${NC}"
 check "role webserver exists" 4 \

@@ -13,22 +13,17 @@ set -uo pipefail
 TF_DIR="${TF_DIR:-terraform}"
 KEY_FILE="${KEY_FILE:-rhce-killer.pem}"
 BOOTSTRAP_TIMEOUT_SEC="${BOOTSTRAP_TIMEOUT_SEC:-600}"
-BOOTSTRAP_POLL_SEC="${BOOTSTRAP_POLL_SEC:-10}"
+BOOTSTRAP_POLL_SEC="${BOOTSTRAP_POLL_SEC:-5}"
 LOG_DIR="${LOG_DIR:-.lab-logs}"
 BAR_WIDTH="${BAR_WIDTH:-20}"
 LABEL_WIDTH="${LABEL_WIDTH:-36}"
 
-# ───── styling ─────────────────────────────────────────────────────────
-if [[ -t 1 ]]; then
-    NC=$'\e[0m'; B=$'\e[1m'; DIM=$'\e[2m'
-    G=$'\e[32m'; R=$'\e[31m'; Y=$'\e[33m'; C=$'\e[36m'
-    IS_TTY=1
-else
-    NC=""; B=""; DIM=""; G=""; R=""; Y=""; C=""
-    IS_TTY=0
-fi
-
-SPIN_CHARS=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+# ───── load UI helpers from shared lib ────────────────────────────────
+# Set widths BEFORE sourcing so the lib uses them.
+BAR_WIDTH=20
+LABEL_WIDTH=36
+# shellcheck source=scripts/lib/spinner.sh
+source "$(dirname "$0")/lib/spinner.sh"
 
 SSH_OPTS=(-i "$KEY_FILE"
           -o StrictHostKeyChecking=no
@@ -42,29 +37,7 @@ trap restore_cursor EXIT INT TERM
 
 mkdir -p "$LOG_DIR"
 
-# ───── tiny helpers ────────────────────────────────────────────────────
-
-format_duration() {
-    local s=$1
-    if (( s < 60 )); then
-        printf "%ds" "$s"
-    else
-        printf "%dm%02ds" $((s / 60)) $((s % 60))
-    fi
-}
-
-# Build a bar of width $BAR_WIDTH filled to a given percentage (0..100).
-make_bar() {
-    local pct="$1"
-    (( pct > 100 )) && pct=100
-    (( pct < 0   )) && pct=0
-    local filled=$(( pct * BAR_WIDTH / 100 ))
-    local empty=$(( BAR_WIDTH - filled ))
-    local bar="" i
-    for (( i=0; i<filled; i++ )); do bar+="█"; done
-    for (( i=0; i<empty;  i++ )); do bar+="·"; done
-    printf '%s' "$bar"
-}
+# ───── tiny helpers (only those lab-up.sh-specific) ───────────────────
 
 # Bytes-aware portable size getter.
 file_size_local() {
@@ -72,43 +45,22 @@ file_size_local() {
     stat -c %s "$f" 2>/dev/null || stat -f %z "$f" 2>/dev/null || echo 0
 }
 
-# Render a status line with marker + label + bar + elapsed.
-# Args: marker label pct elapsed_s color
-render_line() {
-    local marker="$1" label="$2" pct="$3" elapsed="$4" color="$5"
-    if (( IS_TTY )); then
-        printf "\r      ${color}%s${NC} %-*s [${color}%s${NC}] ${DIM}%s${NC}\e[K" \
-            "$marker" "$LABEL_WIDTH" "$label" \
-            "$(make_bar $pct)" "$(format_duration $elapsed)"
-    else
-        printf "      %s %s [%s] %s\n" \
-            "$marker" "$label" "$(make_bar $pct)" "$(format_duration $elapsed)"
+# If the failure mentions a resource that no longer exists in AWS
+# (someone destroyed it from the console out of band), suggest a
+# `terraform refresh` to sync state before retrying.
+# Args: $1 logfile
+suggest_refresh_recovery() {
+    local logfile="$1"
+    if grep -qiE "no longer exists|does not exist|InvalidInstanceID.NotFound|InvalidGroup.NotFound|InvalidVpcID.NotFound|InvalidSubnetID.NotFound" \
+         "$logfile" 2>/dev/null; then
+        echo
+        echo "      ${Y}⚠  Terraform state references a resource that no longer exists in AWS.${NC}"
+        echo "      The resource was probably deleted from the AWS console out of band."
+        echo "      Refresh the state to sync, then retry:"
+        echo "        ${C}cd $TF_DIR && terraform apply -refresh-only -auto-approve -var=my_ip=0.0.0.0/0 && cd ..${NC}"
+        echo "        ${C}make destroy${NC}"
+        echo
     fi
-}
-
-# Finalize a phase line: write a final ✓/✗ at 100% and newline.
-# Args: ok|fail label start_ts
-finalize_line() {
-    local status="$1" label="$2" start="$3"
-    local elapsed=$(( $(date +%s) - start ))
-    if [[ "$status" == "ok" ]]; then
-        render_line "✓" "$label" 100 "$elapsed" "$G"
-    else
-        render_line "✗" "$label" 0 "$elapsed" "$R"
-    fi
-    (( IS_TTY )) && printf '\n'
-}
-
-# Hide cursor (TTY only).
-hide_cursor() { (( IS_TTY )) && printf '\e[?25l'; }
-show_cursor() { (( IS_TTY )) && printf '\e[?25h'; }
-
-# Dump last N lines of a log on failure.
-dump_log_tail() {
-    local logfile="$1" n="${2:-30}"
-    echo
-    echo "      ${DIM}─── last $n lines of $logfile ───${NC}"
-    tail -n "$n" "$logfile" 2>/dev/null | sed 's|^|      |'
 }
 
 # If the failure was a stale Terraform state lock, surface the recovery
@@ -152,31 +104,6 @@ discover_exams() {
 
 get_control_ip() {
     (cd "$TF_DIR" && terraform output -raw control_public_ip 2>/dev/null)
-}
-
-# ───── generic: spinner with fixed pct (no real progress info) ────────
-# Args: start_ts pct label color cmd...
-# Renders an animated spinner at a constant pct until cmd finishes.
-spin_at_pct() {
-    local start="$1"; shift
-    local pct="$1";   shift
-    local label="$1"; shift
-    local color="$1"; shift
-
-    "$@" &
-    local pid=$!
-    hide_cursor
-    local i=0
-    while kill -0 "$pid" 2>/dev/null; do
-        local elapsed=$(( $(date +%s) - start ))
-        render_line "${SPIN_CHARS[i]}" "$label" "$pct" "$elapsed" "$color"
-        i=$(( (i + 1) % ${#SPIN_CHARS[@]} ))
-        sleep 0.1
-    done
-    local rc=0
-    wait "$pid" || rc=$?
-    show_cursor
-    return $rc
 }
 
 # ───── phase 1: terraform (init → plan → apply) ───────────────────────
@@ -417,9 +344,10 @@ do_sync_exams() {
     tarball=$(mktemp -t rhce-exams.XXXXXX.tgz 2>/dev/null \
              || mktemp /tmp/rhce-exams.XXXXXX.tgz)
 
-    # Step 1 (0–25%): pack tarball locally
+    # Step 1 (0–25%): pack tarball locally — exam dirs + the shared lib that
+    # all grade.sh files source.
     spin_at_pct "$start" 12 "$label_full — packing" "$C" \
-        bash -c "tar czf '$tarball' $complete_list $thematic_list >>'$logfile' 2>&1"
+        bash -c "tar czf '$tarball' $complete_list $thematic_list scripts/lib >>'$logfile' 2>&1"
     local rc=$?
     if (( rc != 0 )); then
         finalize_line fail "$label_full — pack" "$start"
@@ -443,7 +371,9 @@ do_sync_exams() {
         rm -f "$tarball"; return $rc
     fi
 
-    # Step 3 (90–100%): extract + install on the control node
+    # Step 3 (90–100%): extract + install on the control node.
+    # scripts/lib/ goes to /home/student/exams/lib so grade.sh files can
+    # source it via $(dirname "$0")/../lib/grade-helpers.sh
     spin_at_pct "$start" 95 "$label_full — installing" "$C" \
         ssh "${SSH_OPTS[@]}" "$remote_user_host" "
             set -e
@@ -453,6 +383,7 @@ do_sync_exams() {
             tar xzf $remote_tgz -C \$TMP
             for d in $complete_list; do sudo mv \$TMP/\$d /home/student/exams/complete/; done
             for d in $thematic_list; do sudo mv \$TMP/\$d /home/student/exams/thematic/; done
+            sudo mv \$TMP/scripts/lib /home/student/exams/lib
             sudo chown -R student:student /home/student/exams/
             sudo find /home/student/exams/ -name '*.sh' -exec chmod +x {} +
             rm -rf \$TMP $remote_tgz
@@ -501,6 +432,9 @@ do_destroy() {
         finalize_line fail "Terraform plan -destroy" "$start"
         dump_log_tail "$logfile"
         suggest_lock_recovery "$logfile"
+        suggest_refresh_recovery "$logfile"
+        # On failure, KEEP .lab-logs/ for forensics — don't auto-clean.
+        echo "      ${DIM}Logs preserved at $LOG_DIR/ for inspection.${NC}"
         return $rc
     fi
 
@@ -530,8 +464,10 @@ do_destroy() {
         finalize_line fail "Destroying ($planned resources)" "$start"
         dump_log_tail "$logfile"
         suggest_lock_recovery "$logfile"
+        suggest_refresh_recovery "$logfile"
         echo
         echo "      ${Y}⚠  Some resources may still exist in AWS. Re-run 'make destroy'.${NC}"
+        echo "      ${DIM}Logs preserved at $LOG_DIR/ for inspection.${NC}"
         echo
         return $rc
     fi
@@ -548,6 +484,7 @@ do_destroy() {
         finalize_line fail "Verification: $leftover resources still in state" "$v_start"
         echo "      ${Y}⚠  Run 'cd $TF_DIR && terraform state list' to inspect.${NC}"
         echo "      ${Y}    Then re-run 'make destroy'.${NC}"
+        echo "      ${DIM}Logs preserved at $LOG_DIR/ for inspection.${NC}"
         return 1
     fi
     finalize_line ok "Verification: state is empty" "$v_start"
