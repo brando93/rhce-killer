@@ -1,5 +1,6 @@
 .PHONY: up tf-apply wait-bootstrap bootstrap-status sync-exams \
-        ssh ssh-student destroy verify status help debug ip-fix unlock
+        ssh ssh-student destroy verify status help debug ip-fix unlock \
+        auto-destroy auto-destroy-stop auto-destroy-status
 
 # ─── Configuration ──────────────────────────────────────────────
 TF_DIR    := terraform
@@ -30,6 +31,11 @@ help:
 	@echo "  make bootstrap-status one-shot bootstrap check (no polling)"
 	@echo "  make wait-bootstrap   block until bootstrap finishes (with progress bar)"
 	@echo "  make unlock           force-release a stale Terraform state lock"
+	@echo ""
+	@echo "  Idle-protection:"
+	@echo "  make auto-destroy         start daemon (destroy after 1h of no SSH)"
+	@echo "  make auto-destroy-status  show daemon state + last activity"
+	@echo "  make auto-destroy-stop    stop daemon"
 	@echo ""
 	@echo "  Logs from each phase live under .lab-logs/"
 	@echo "  Tail any phase live in another terminal: tail -f .lab-logs/01-tf-apply.log"
@@ -103,6 +109,17 @@ ip-fix:
 	@echo "  Updating SG to allow your IP: $(MY_IP)"
 	@cd $(TF_DIR) && terraform apply -var="my_ip=$(MY_IP)" \
 	  -target=aws_security_group.control -auto-approve
+
+# Auto-destroy daemon: watches SSH activity, tears down the lab after an hour
+# of inactivity. Default timeout 1h, override with INACTIVITY_TIMEOUT_SEC=...
+auto-destroy:
+	@bash auto-destroy.sh start
+
+auto-destroy-stop:
+	@bash auto-destroy.sh stop
+
+auto-destroy-status:
+	@bash auto-destroy.sh status
 
 # Recover from a stale Terraform state lock (e.g. after a crashed apply).
 unlock:

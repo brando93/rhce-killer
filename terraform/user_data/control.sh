@@ -10,10 +10,23 @@ ${node1_ip}  node1.example.com    node1
 ${node2_ip}  node2.example.com    node2
 EOF
 
-dnf update -y
-dnf install -y ansible-core python3 python3-pip git vim tree tmux wget curl bash-completion
+# Free spin-up optimization: skip `dnf update -y`. Rocky 9 AMIs come with
+# recent enough packages for a short-lived lab; skipping saves 60-120s.
+# Also trimmed the dnf package list to essentials only. vim-minimal,
+# curl-minimal and bash are already in the base image; vim-enhanced and
+# git stay because students will use them. tmux/tree/wget were dropped
+# to save another ~10-20s.
+dnf install -y ansible-core python3 python3-pip git vim-enhanced
 
-ansible-galaxy collection install ansible.posix community.general --collections-path /usr/share/ansible/collections
+# Run galaxy collection install in the BACKGROUND in parallel with the rest
+# of the bootstrap (user creation, SSH keys, configs). Total bootstrap
+# time becomes max(dnf, galaxy + tail) instead of dnf + galaxy + tail.
+# We wait for it before declaring bootstrap complete so students never see
+# the lab as "ready" while collections are still missing.
+ansible-galaxy collection install ansible.posix community.general \
+    --collections-path /usr/share/ansible/collections \
+    &
+GALAXY_PID=$!
 
 useradd -m -s /bin/bash student
 echo "student ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/student
@@ -145,6 +158,14 @@ cat > /etc/motd <<'MOTD'
 ║  💡 Tip: All exams have complete solutions in README files!  ║
 ╚══════════════════════════════════════════════════════════════╝
 MOTD
+
+# Wait for the background galaxy install (if not already done) before
+# declaring bootstrap complete — students must see collections present.
+# NOTE: $${...} escapes the dollar sign so Terraform's templatefile()
+# doesn't try to interpolate GALAXY_PID as an HCL variable.
+if [ -n "$${GALAXY_PID:-}" ]; then
+    wait "$GALAXY_PID" || echo "WARN: ansible-galaxy collection install exited non-zero"
+fi
 
 echo "=== Bootstrap complete at: $(date) ==="
 

@@ -6,6 +6,9 @@ terraform/terraform.tfstate.backup
 terraform/terraform.tfvars
 terraform/.lab-up.tfplan*
 .lab-logs/
+.auto-destroy.pid
+.auto-destroy.log
+.auto-destroy.activity
 .DS_Store
 Ansible Documentation.md
 
