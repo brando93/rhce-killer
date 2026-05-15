@@ -8,5 +8,5 @@ output "bootstrap_log" {
   value = "To debug bootstrap: ssh in, then: sudo tail -f /var/log/rhce-bootstrap.log"
 }
 output "cost_reminder" {
-  value = "~$0.07/hr — remember: make destroy when done!"
+  value = "~$0.05/hr with Spot — remember: make destroy when done! NAT GW + EIP are the silent billers."
 }

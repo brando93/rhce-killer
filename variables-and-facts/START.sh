@@ -1,180 +1,73 @@
 #!/bin/bash
-#
-# RHCE Killer - Variables and Facts Timer
-# Magic Variables, Facts & Conditionals Mastery
-#
+# ─────────────────────────────────────────────
+# RHCE Killer — Exam Timer
+# Simulates the real EX294 exam experience
+# ─────────────────────────────────────────────
 
-EXAM_NAME="Variables and Facts: Magic Variables, Facts & Conditionals"
-EXAM_DURATION=180  # 3 hours in minutes
-EXAM_DIR="$HOME/exams/variables-and-facts"
-TIMER_FILE="$HOME/.variables_and_facts_timer"
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
-NC='\033[0m' # No Color
-
-clear
-
-echo -e "${CYAN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║${NC}  ${GREEN}RHCE Killer${NC} — Variables and Facts                       ${CYAN}║${NC}"
-echo -e "${CYAN}║${NC}  ${YELLOW}Magic Variables, Facts & Conditionals Mastery${NC}            ${CYAN}║${NC}"
-echo -e "${CYAN}╚════════════════════════════════════════════════════════════╝${NC}"
-echo ""
-
-# Check if timer already exists
-if [ -f "$TIMER_FILE" ]; then
-    START_TIME=$(cat "$TIMER_FILE")
-    CURRENT_TIME=$(date +%s)
-    ELAPSED=$((CURRENT_TIME - START_TIME))
-    ELAPSED_MIN=$((ELAPSED / 60))
-    REMAINING=$((EXAM_DURATION - ELAPSED_MIN))
-    
-    if [ $REMAINING -le 0 ]; then
-        echo -e "${RED}⏰ Time's up! Your exam time has expired.${NC}"
-        echo ""
-        echo -e "${YELLOW}📊 Grade your work:${NC}"
-        echo -e "   ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC}"
-        echo ""
-        rm -f "$TIMER_FILE"
-        exit 0
-    fi
-    
-    echo -e "${YELLOW}⚠️  Exam already in progress!${NC}"
-    echo ""
-    echo -e "   Started: $(date -r $START_TIME '+%Y-%m-%d %H:%M:%S')"
-    echo -e "   Elapsed: ${ELAPSED_MIN} minutes"
-    echo -e "   Remaining: ${GREEN}${REMAINING} minutes${NC}"
-    echo ""
-    echo -e "${CYAN}💡 Commands:${NC}"
-    echo -e "   ${GREEN}cat ~/exams/variables-and-facts/README.md | less${NC}  → View instructions"
-    echo -e "   ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC}         → Grade your work"
-    echo ""
-    exit 0
-fi
-
-# Display exam information
-echo -e "${BLUE}📋 Exam Information:${NC}"
-echo -e "   • ${YELLOW}Duration:${NC} 3 hours (180 minutes)"
-echo -e "   • ${YELLOW}Tasks:${NC} 15 exercises"
-echo -e "   • ${YELLOW}Total Points:${NC} 200"
-echo -e "   • ${YELLOW}Passing Score:${NC} 140/200 (70%)"
-echo -e "   • ${YELLOW}Focus:${NC} Ansible Facts, Magic Variables, Conditionals"
-echo ""
-
-echo -e "${BLUE}🎯 Topics Covered:${NC}"
-echo -e "   • Ansible Facts Discovery & Usage"
-echo -e "   • Magic Variables (inventory_hostname, groups, hostvars)"
-echo -e "   • Conditional Logic (when, failed_when, changed_when)"
-echo -e "   • Custom Facts Creation"
-echo -e "   • OS-Specific Configurations"
-echo -e "   • Network & Hardware Facts"
-echo -e "   • Loop + Conditional Combinations"
-echo -e "   • Register & Conditional Execution"
-echo ""
-
-echo -e "${BLUE}📁 Working Directory:${NC}"
-echo -e "   ${GREEN}cd ~/ansible/${NC}"
-echo ""
-
-echo -e "${BLUE}📖 View Instructions:${NC}"
-echo -e "   ${GREEN}cat ~/exams/variables-and-facts/README.md | less${NC}"
-echo ""
-
-echo -e "${BLUE}📊 Grade Your Work:${NC}"
-echo -e "   ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC}"
-echo ""
-
-echo -e "${YELLOW}⚠️  Important Rules:${NC}"
-echo -e "   • Work as user ${GREEN}student${NC} on ${GREEN}control.example.com${NC}"
-echo -e "   • All files must be in ${GREEN}/home/student/ansible/${NC}"
-echo -e "   • Do NOT modify ${GREEN}/etc/ansible/ansible.cfg${NC}"
-echo -e "   • Playbooks must run without errors"
-echo -e "   • No partial credit — tasks are all-or-nothing"
-echo ""
-
-echo -e "${MAGENTA}💡 Pro Tips:${NC}"
-echo -e "   • Use ${GREEN}ansible hostname -m setup${NC} to explore facts"
-echo -e "   • Use ${GREEN}ansible hostname -m setup -a 'filter=ansible_*'${NC} for specific facts"
-echo -e "   • Test conditionals with ${GREEN}debug${NC} module first"
-echo -e "   • Remember: ${GREEN}ansible_local${NC} for custom facts"
-echo -e "   • Check ${GREEN}ansible-doc${NC} for module syntax"
-echo ""
-
-# Confirmation
-echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
-echo ""
-read -p "$(echo -e ${YELLOW}Ready to start the 3-hour timer? [y/N]:${NC} )" -n 1 -r
-echo ""
-
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    echo -e "${RED}❌ Exam cancelled.${NC}"
-    echo ""
-    exit 0
-fi
-
-# Start timer
+EXAM_DURATION=$((10800))  # 3 hours in seconds
 START_TIME=$(date +%s)
-echo "$START_TIME" > "$TIMER_FILE"
+END_TIME=$((START_TIME + EXAM_DURATION))
+LOG_FILE="/home/student/.exam_start_time"
+
+# Save start time for reference
+echo "$START_TIME" > "$LOG_FILE"
 
 clear
-
-echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║${NC}  ${YELLOW}✅ EXAM STARTED!${NC}                                          ${GREEN}║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "${CYAN}⏰ Timer Started:${NC} $(date '+%Y-%m-%d %H:%M:%S')"
-echo -e "${CYAN}⏰ Exam Ends:${NC} $(date -d "+${EXAM_DURATION} minutes" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -v+${EXAM_DURATION}M '+%Y-%m-%d %H:%M:%S' 2>/dev/null)"
-echo ""
-echo -e "${YELLOW}📋 Quick Start:${NC}"
-echo -e "   1. ${GREEN}cd ~/ansible/${NC}"
-echo -e "   2. ${GREEN}cat ~/exams/variables-and-facts/README.md | less${NC}"
-    echo -e "   3. Start with Task 01 and work through sequentially"
-    echo -e "   4. ${GREEN}bash ~/exams/variables-and-facts/grade.sh${NC} when done"
-echo ""
-echo -e "${MAGENTA}💡 Remember:${NC}"
-echo -e "   • ${GREEN}ansible node1.example.com -m setup${NC} → See all facts"
-echo -e "   • ${GREEN}ansible node1.example.com -m setup -a 'filter=ansible_mem*'${NC} → Filter facts"
-echo -e "   • Test your playbooks frequently!"
-echo -e "   • Use ${GREEN}--check${NC} mode to test without changes"
-echo ""
-echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
-echo ""
-echo -e "${GREEN}Good luck! 🚀${NC}"
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║     RHCE KILLER — Variables and Facts Exam Starting         ║"
+echo "╠══════════════════════════════════════════════════════════════╣"
+echo "║                                                              ║"
+echo "║  Duration : 3 hours                                          ║"
+echo "║  Start    : $(date '+%H:%M:%S %Z')                                    ║"
+echo "║  End      : $(date -d "@$END_TIME" '+%H:%M:%S %Z' 2>/dev/null || date -r "$END_TIME" '+%H:%M:%S %Z')                                    ║"
+echo "║                                                              ║"
+echo "║  Working directory: /home/student/ansible/                   ║"
+echo "║                                                              ║"
+echo "║  Read the exam at: ~/exams/variables-and-facts/README.md     ║"
+echo "║  Grade yourself  : bash ~/exams/variables-and-facts/grade.sh ║"
+echo "║                                                              ║"
+echo "║  Press Ctrl+C to exit timer (exam continues)                 ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Change to working directory
-cd ~/ansible/ 2>/dev/null || cd ~
+# Show countdown
+while true; do
+  NOW=$(date +%s)
+  REMAINING=$((END_TIME - NOW))
 
-# Create a reminder script
-cat > /tmp/exam06_reminder.sh << 'EOF'
-#!/bin/bash
-TIMER_FILE="$HOME/.exam06_timer"
-if [ -f "$TIMER_FILE" ]; then
-    START_TIME=$(cat "$TIMER_FILE")
-    CURRENT_TIME=$(date +%s)
-    ELAPSED=$((CURRENT_TIME - START_TIME))
-    ELAPSED_MIN=$((ELAPSED / 60))
-    REMAINING=$((180 - ELAPSED_MIN))
-    
-    if [ $REMAINING -le 0 ]; then
-        echo "⏰ EXAM TIME EXPIRED! Grade your work: bash ~/exams/variables-and-facts/grade.sh"
-        rm -f "$TIMER_FILE"
-    else
-        HOURS=$((REMAINING / 60))
-        MINS=$((REMAINING % 60))
-        echo "⏰ Variables and Facts - Time remaining: ${HOURS}h ${MINS}m"
-    fi
-fi
-EOF
-chmod +x /tmp/exam06_reminder.sh
+  if [ "$REMAINING" -le 0 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║                ⏰  TIME IS UP!                    ║"
+    echo "║   Run: bash ~/exams/variables-and-facts/grade.sh  ║"
+    echo "╚══════════════════════════════════════════════════╝"
+    break
+  fi
 
-# Show initial time remaining
-/tmp/exam06_reminder.sh
+  HH=$((REMAINING / 3600))
+  MM=$(( (REMAINING % 3600) / 60 ))
+  SS=$((REMAINING % 60))
 
-# Made with Bob
+  # Warning colors
+  if [ "$REMAINING" -le 300 ]; then
+    COLOR="\033[0;31m"
+  elif [ "$REMAINING" -le 900 ]; then
+    COLOR="\033[1;33m"
+  else
+    COLOR="\033[0;36m"
+  fi
+
+  printf "\r  ${COLOR}Time remaining: %02d:%02d:%02d\033[0m   " "$HH" "$MM" "$SS"
+
+  # Alerts
+  if [ "$REMAINING" -eq 3600 ]; then
+    echo -e "\n\n  ⚠️  ONE HOUR REMAINING — prioritize incomplete tasks!\n"
+  elif [ "$REMAINING" -eq 900 ]; then
+    echo -e "\n\n  ⚠️  15 MINUTES LEFT — wrap up and verify!\n"
+  elif [ "$REMAINING" -eq 300 ]; then
+    echo -e "\n\n  🚨 5 MINUTES LEFT — stop and grade now!\n"
+  fi
+
+  sleep 1
+done
