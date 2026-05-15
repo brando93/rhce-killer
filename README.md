@@ -69,6 +69,43 @@ aws configure
 # Enter your Access Key ID, Secret Access Key, region: us-east-1
 ```
 
+### AWS account requirements
+
+The IAM user/role you're using needs at minimum these managed policies:
+
+- `AmazonEC2FullAccess` — for instances, security groups, key pairs, EBS
+- `AmazonVPCFullAccess` — for the VPC, subnets, IGW, NAT GW, EIP
+
+If you'd rather use a least-privilege custom policy, the actions Terraform
+performs are: `ec2:*Vpc*`, `ec2:*Subnet*`, `ec2:*RouteTable*`,
+`ec2:*InternetGateway*`, `ec2:*NatGateway*`, `ec2:*Address*` (EIPs),
+`ec2:*SecurityGroup*`, `ec2:*KeyPair*`, `ec2:*Instance*`, `ec2:DescribeImages`.
+
+### Spot Instance gotchas
+
+The managed nodes (`t3.micro`) run as **Spot Instances** for the ~70% price
+cut. On a brand-new AWS account or in a region with low capacity you may hit
+either of these:
+
+- **`InsufficientInstanceCapacity`** — Spot pool is dry. Wait 5–10 min and
+  retry `make up`, or temporarily comment out the `instance_market_options`
+  block in `terraform/main.tf` to fall back to On-Demand.
+- **`MaxSpotInstanceCountExceeded`** — your account's Spot quota is 0 (the
+  default for new accounts in some regions). Request a quota increase from
+  the AWS console: *Service Quotas → EC2 → "All Standard … Spot Instance
+  Requests"* and bump to at least 2. Usually approved in minutes.
+
+### Cost ceiling
+
+With Spot pricing the lab costs ~$0.05/hr while running. The **silent
+billers** when you forget to destroy are the NAT Gateway (~$0.045/hr) and
+the Elastic IP attached to it (~$0.005/hr) — neither shows up on the EC2
+dashboard. `make verify` and `make destroy` both confirm those are gone.
+
+> **Got stung once?** Run `make auto-destroy` after `make up` — it'll tear
+> the lab down automatically after 1 hour of no SSH activity. See *Idle
+> protection* below.
+
 ---
 
 ## Quick start
@@ -210,8 +247,8 @@ Perfect for final exam preparation. Each exam covers multiple topics mixed toget
 | **Exam 02** | Intermediate Tasks (incl. cluster-info template) | 11 | 135 | 4h | ⭐⭐ Intermediate | ✅ Complete |
 | **Exam 03** | Roles & Collections (incl. phpinfo + balancer) | 11 | 135 | 4h | ⭐⭐⭐ Advanced | ✅ Complete |
 | **Exam 04** | Linux Admin (incl. parted, conditional LVM, network role) | 13 | 180 | 4h | ⭐⭐⭐ Advanced | ✅ Complete |
-| **Exam 05** | Troubleshooting & Advanced | 10 | 150 | 4h | ⭐⭐⭐⭐ Expert | ✅ Complete |
-| **TOTAL** | | **56** | **730** | **20h** | | |
+| **Exam 05** | Troubleshooting & Advanced | 10 | 175 | 4h | ⭐⭐⭐⭐ Expert | ✅ Complete |
+| **TOTAL** | | **56** | **755** | **20h** | | |
 
 **Location:** `~/exams/complete/exam-01/` through `exam-05/`
 
@@ -261,12 +298,22 @@ Perfect for learning and mastering specific Ansible concepts. Each exam focuses 
 | **Performance Optimization** | 244 | 2.5h | 15 |
 | **System Administration** ¹ | 345 | 3h | 18 |
 
+#### Modern CLI (1 exam)
+| Exam | Points | Duration | Exercises |
+|------|--------|----------|-----------|
+| **Ansible-Navigator & Execution Environments** ² | 165 | 2.5h | 13 |
+
 ¹ Includes new exercises added after auditing the project against an
 Ansible exam dump: `yum_repository`, `parted`, `rhel-system-roles.network`,
 phpinfo + Apache `mod_proxy_balancer`, conditional LVM provisioning, and
 cluster-inventory templating from `hostvars`.
 
-**Thematic Total:** 16 exams, 3,976 points, ~43 hours, 265 exercises
+² Real EX294 v9.x expects you to use `ansible-navigator` (not direct
+`ansible-playbook`). This module drills navigator commands, EE config,
+artifacts, and replays. Skipping it = 15% of the modern exam left on the
+table.
+
+**Thematic Total:** 17 exams, 4,141 points, ~45.5 hours, 278 exercises
 
 **Location:** `~/exams/thematic/inventory-basics/` through `system-administration/`
 
@@ -293,12 +340,12 @@ cluster-inventory templating from `hostvars`.
 
 ### 📊 Combined Statistics
 
-- **Total Exams:** 21 (5 complete + 16 thematic)
-- **Total Exercises:** 321
-- **Total Points:** 4,706
-- **Total Practice Time:** ~63 hours
-- **Validation Checks:** 390+ automated checks
-- **EX294 Coverage:** 95%+ of all exam objectives
+- **Total Exams:** 22 (5 complete + 17 thematic)
+- **Total Exercises:** 334
+- **Total Points:** 4,896
+- **Total Practice Time:** ~65 hours
+- **Validation Checks:** 450+ automated checks
+- **EX294 Coverage:** ~98% of all exam objectives (incl. modern v9.x)
 
 
 ## Available commands
@@ -342,6 +389,25 @@ make wait-bootstrap   # Block until bootstrap finishes (with progress bar) — u
 make bootstrap-status # One-shot bootstrap check (no polling, exits immediately)
 ```
 
+### Idle protection (the "I left it running overnight" fix)
+
+If you've ever closed your laptop with the lab still up and woken up to a
+surprise AWS bill, run this right after `make up`:
+
+```bash
+make auto-destroy           # daemon: destroys the lab after 1h of no SSH
+make auto-destroy-status    # show last activity + countdown
+make auto-destroy-stop      # cancel the daemon (e.g. taking a long break)
+```
+
+The daemon polls the control node every 5 minutes via SSH and refreshes its
+"last active" timestamp every time it sees an SSH session. After 1h of no
+sessions (configurable via `INACTIVITY_TIMEOUT_SEC=7200 make auto-destroy`),
+it runs `make destroy` for you — same robust destroy with progress + verify.
+
+Activity log lives at `.auto-destroy.log`. Daemon survives terminal closing
+(uses `nohup` + `disown`).
+
 ---
 
 
@@ -367,7 +433,7 @@ rhce-killer/
 ├── exam-02/                    # ⭐⭐ Intermediate Tasks (135 pts, 4h, 11 tasks)
 ├── exam-03/                    # ⭐⭐⭐ Roles & Collections (135 pts, 4h, 11 tasks)
 ├── exam-04/                    # ⭐⭐⭐ Linux Administration (180 pts, 4h, 13 tasks)
-├── exam-05/                    # ⭐⭐⭐⭐ Troubleshooting (150 pts, 4h, 10 tasks)
+├── exam-05/                    # ⭐⭐⭐⭐ Troubleshooting (175 pts, 4h, 10 tasks)
 │   └── Each contains:
 │       ├── README.md           # tasks + complete solutions
 │       ├── START.sh            # 4-hour timer
@@ -390,6 +456,7 @@ rhce-killer/
 ├── debugging-and-troubleshooting/  # Optimization (240 pts, 20 tasks)
 ├── performance-optimization/   # Optimization (244 pts, 15 tasks)
 ├── system-administration/      # Optimization (345 pts, 18 tasks)
+├── ansible-navigator-and-ee/   # Modern CLI (165 pts, 13 tasks) ← EX294 v9.x
 │
 ├── verification/
 │   └── reset-lab.sh            # Clean slate between attempts
@@ -398,7 +465,7 @@ rhce-killer/
                                 # tail any file for raw Terraform/SSH output
 ```
 
-**Total:** 21 exams, 321 exercises, 4,706 points, 390+ automated validation checks, 95%+ EX294 coverage
+**Total:** 22 exams, 334 exercises, 4,896 points, 450+ automated validation checks, ~98% EX294 coverage (incl. ansible-navigator + EE for v9.x)
 
 ---
 
