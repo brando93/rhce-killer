@@ -258,12 +258,13 @@ Perfect for final exam preparation. Each exam covers multiple topics mixed toget
 
 Perfect for learning and mastering specific Ansible concepts. Each exam focuses on one topic with 15-20 exercises.
 
-#### Fundamentals (3 exams)
+#### Fundamentals (4 exams)
 | Exam | Points | Duration | Exercises |
 |------|--------|----------|-----------|
 | **Inventory Basics** | 120 | 2h | 15 |
 | **Playbooks Fundamentals** | 155 | 2.5h | 13 |
 | **Variables and Facts** | 200 | 3h | 15 |
+| **Data Manipulation & Filters** ³ | 158 | 2h | 15 |
 
 #### Logic & Control (3 exams)
 | Exam | Points | Duration | Exercises |
@@ -313,7 +314,13 @@ cluster-inventory templating from `hostvars`.
 artifacts, and replays. Skipping it = 15% of the modern exam left on the
 table.
 
-**Thematic Total:** 17 exams, 4,141 points, ~45.5 hours, 278 exercises
+³ Drills the bridge between data sources (facts, magic vars, inventory)
+and deliverables (config files, reports, /etc/hosts). Every task is
+framed around a real EX294 scenario (memory in GB, sortable CSV report,
+mounts above threshold). Cubre `split`, `join`, `round`, math, `map`,
+`selectattr`, `combine`, `to_nice_yaml`, `json_query`, `default('NONE')`.
+
+**Thematic Total:** 18 exams, 4,299 points, ~47.5 hours, 293 exercises
 
 **Location:** `~/exams/thematic/inventory-basics/` through `system-administration/`
 
@@ -340,11 +347,11 @@ table.
 
 ### 📊 Combined Statistics
 
-- **Total Exams:** 22 (5 complete + 17 thematic)
-- **Total Exercises:** 334
-- **Total Points:** 4,896
-- **Total Practice Time:** ~65 hours
-- **Validation Checks:** 450+ automated checks
+- **Total Exams:** 23 (5 complete + 18 thematic)
+- **Total Exercises:** 349
+- **Total Points:** 5,054
+- **Total Practice Time:** ~67 hours
+- **Validation Checks:** 525+ automated checks
 - **EX294 Coverage:** ~98% of all exam objectives (incl. modern v9.x)
 
 
@@ -443,6 +450,7 @@ rhce-killer/
 ├── inventory-basics/           # Fundamentals (120 pts, 15 tasks)
 ├── playbooks-fundamentals/     # Fundamentals (155 pts, 13 tasks)
 ├── variables-and-facts/        # Fundamentals (200 pts, 15 tasks)
+├── data-manipulation-and-filters/ # Fundamentals (158 pts, 15 tasks) ← NEW
 ├── conditionals-and-when/      # Logic & Control (207 pts, 16 tasks)
 ├── loops-and-iteration/        # Logic & Control (207 pts, 15 tasks)
 ├── blocks-and-error-handling/  # Logic & Control (215 pts, 15 tasks)
@@ -465,7 +473,7 @@ rhce-killer/
                                 # tail any file for raw Terraform/SSH output
 ```
 
-**Total:** 22 exams, 334 exercises, 4,896 points, 450+ automated validation checks, ~98% EX294 coverage (incl. ansible-navigator + EE for v9.x)
+**Total:** 23 exams, 349 exercises, 5,054 points, 525+ automated validation checks, ~98% EX294 coverage (incl. ansible-navigator + EE for v9.x)
 
 ---
 
