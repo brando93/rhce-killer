@@ -160,85 +160,204 @@ Create a role `database` that:
 
 ### Task 07 — Role with Vars (18 pts)
 
-Create a role `cache` that:
-- Defines variables in `vars/main.yml`:
+Create a role `cache` under `/home/student/ansible/roles/cache` that
+configures an in-memory cache config file on every managed node. The
+goal is to see how `vars/main.yml` takes precedence over `defaults/main.yml`.
+
+- Create `defaults/main.yml` with:
   ```yaml
   cache_port: 6379
+  cache_maxmemory: 128mb
+  cache_bind: 127.0.0.1
+  ```
+- Create `vars/main.yml` with HIGHER precedence values:
+  ```yaml
+  cache_port: 6380
   cache_maxmemory: 256mb
   ```
-- Creates config file using these variables
-- Higher precedence than defaults
+- `tasks/main.yml` deploys `/etc/cache.conf` using `ansible.builtin.copy`
+  with `content:` rendering each variable, e.g.:
+  ```
+  port = 6380
+  maxmemory = 256mb
+  bind = 127.0.0.1
+  ```
+- Owner `root`, mode `0644`
+- Notice that `cache_bind` comes from defaults (not overridden) while
+  `cache_port` and `cache_maxmemory` come from `vars/main.yml`
 
-**Requirements:**
-- Vars in `vars/main.yml`
-- Task uses variables
-- Higher precedence than defaults
-- Cannot easily override
+Create a playbook `cache.yml` at `/home/student/ansible/` that applies
+the role to `managed` with `become: true`.
+
+After running, on any managed node you should see:
+```bash
+cat /etc/cache.conf
+# port = 6380
+# maxmemory = 256mb
+# bind = 127.0.0.1
+```
 
 ---
 
 ### Task 08 — Role Dependencies (20 pts)
 
-Create role `wordpress` that:
-- Depends on `apache` role
-- Depends on `database` role
-- Defines dependencies in `meta/main.yml`
-- Dependencies run first
+You'll create THREE roles that depend on each other to demonstrate the
+`dependencies:` mechanism. The goal: when you apply only the top role,
+the dependencies execute first automatically.
 
-**Requirements:**
-- Dependencies in `meta/main.yml`
-- Uses `dependencies:` key
-- Dependent roles run first
-- Proper order
+- Create role `base` at `/home/student/ansible/roles/base`. Its
+  `tasks/main.yml` writes `/tmp/base-installed.txt` with content
+  `base role ran at {{ ansible_date_time.iso8601 }}`.
+- Create role `apache` at `/home/student/ansible/roles/apache`. Its
+  `tasks/main.yml` writes `/tmp/apache-installed.txt` with content
+  `apache role ran at {{ ansible_date_time.iso8601 }}`.
+- Create role `wordpress` at `/home/student/ansible/roles/wordpress`:
+  - `meta/main.yml` declares dependencies on `base` AND `apache`
+    using the `dependencies:` key
+  - `tasks/main.yml` writes `/tmp/wordpress-installed.txt` with content
+    `wordpress role ran at {{ ansible_date_time.iso8601 }}`
+
+Create a playbook `wordpress.yml` that applies ONLY the `wordpress` role
+to `managed` with `become: true`. Running it must produce all three
+output files on every managed node, in this execution order: `base` →
+`apache` → `wordpress` (you can verify by comparing the timestamps).
+
+After running, on any managed node:
+```bash
+ls -la /tmp/*-installed.txt
+head -1 /tmp/base-installed.txt
+head -1 /tmp/apache-installed.txt
+head -1 /tmp/wordpress-installed.txt
+```
 
 ---
 
 ### Task 09 — Role with Multiple Task Files (20 pts)
 
-Create role `fullstack` that:
-- Has `tasks/main.yml` that includes:
-  - `tasks/install.yml`
-  - `tasks/configure.yml`
-  - `tasks/service.yml`
-- Uses `include_tasks` or `import_tasks`
+Create role `fullstack` at `/home/student/ansible/roles/fullstack` that
+splits its work across three task files instead of one giant
+`main.yml`. The role installs and configures a simple Apache web stack
+on every managed node.
 
-**Requirements:**
-- Multiple task files
-- Main includes others
-- Organized by function
-- All tasks execute
+Required files:
+- `tasks/main.yml` — orchestrator only; uses `import_tasks` to pull in
+  the three files below in order:
+  ```yaml
+  ---
+  - name: Install packages
+    ansible.builtin.import_tasks: install.yml
+
+  - name: Configure application
+    ansible.builtin.import_tasks: configure.yml
+
+  - name: Start service
+    ansible.builtin.import_tasks: service.yml
+  ```
+- `tasks/install.yml` — installs `httpd` package via `ansible.builtin.dnf`
+- `tasks/configure.yml` — uses `ansible.builtin.copy` to deploy
+  `/var/www/html/index.html` with content:
+  ```
+  Fullstack role from {{ ansible_hostname }} — phase: configure OK
+  ```
+- `tasks/service.yml` — starts and enables `httpd` via
+  `ansible.builtin.service`
+
+Create a playbook `fullstack.yml` at `/home/student/ansible/` that
+applies the role to `managed` with `become: true`.
+
+After running, on any managed node:
+```bash
+systemctl is-active httpd       # active
+curl -s http://localhost        # Fullstack role from node1 — phase: configure OK
+```
 
 ---
 
 ### Task 10 — Apply Role to Specific Hosts (15 pts)
 
-Create playbook `webservers.yml` that:
-- Applies `apache` role only to `webservers` group
-- Uses `roles:` keyword
-- Runs on correct hosts
+Create playbook `apply-managed.yml` at `/home/student/ansible/` that
+applies the `apache` role from Task 08 ONLY to the `managed` group
+(the only managed-node group in your inventory besides `control`).
 
-**Requirements:**
-- Playbook targets webservers
-- Uses roles section
-- Role applied correctly
-- Only webservers affected
+- `hosts: managed` (NOT `all`, NOT `webservers` — they don't exist
+  in this lab inventory)
+- `become: true`
+- `roles:` section lists `apache`
+- The play must NOT touch the control node
+
+After running, the apache role's marker file must exist on every
+managed node and NOT on control:
+```bash
+ansible managed -b -m shell -a 'test -f /tmp/apache-installed.txt && echo present'
+# node1.example.com | CHANGED | rc=0 >>
+# present
+# node2.example.com | CHANGED | rc=0 >>
+# present
+
+ansible control -b -m shell -a 'test -f /tmp/apache-installed.txt'
+# control.example.com | FAILED | rc=1  (file should NOT exist)
+```
 
 ---
 
 ### Task 11 — Role with Tags (18 pts)
 
-Create role `monitoring` that:
-- Has tasks with tags:
-  - `install` tag for installation
-  - `config` tag for configuration
-  - `service` tag for service management
-- Can run specific tags
+Create role `monitoring` at `/home/student/ansible/roles/monitoring`
+that demonstrates per-task tagging. The role installs a lightweight
+metrics agent **using packages that actually exist in the lab's repos**
+(no Nagios or Prometheus — they need external repos that aren't enabled).
 
-**Requirements:**
-- Tasks have tags
-- Can run with `--tags`
-- Can skip with `--skip-tags`
-- Proper tagging
+Split the work into three task files like Task 09, with each `import_tasks`
+call tagged separately:
+
+- `tasks/main.yml`:
+  ```yaml
+  ---
+  - name: Install metrics agent
+    ansible.builtin.import_tasks: install.yml
+    tags: [install]
+
+  - name: Configure metrics agent
+    ansible.builtin.import_tasks: config.yml
+    tags: [config]
+
+  - name: Manage service
+    ansible.builtin.import_tasks: service.yml
+    tags: [service]
+  ```
+- `tasks/install.yml` — installs `sysstat` via `ansible.builtin.dnf`
+  (ships in BaseOS/AppStream, no extra repo needed)
+- `tasks/config.yml` — uses `ansible.builtin.lineinfile` to set
+  `ENABLED="true"` in `/etc/sysconfig/sysstat`
+- `tasks/service.yml` — starts and enables the `sysstat` service via
+  `ansible.builtin.service`
+
+Create a playbook `monitoring.yml` at `/home/student/ansible/` that
+applies the role to `managed` with `become: true`.
+
+The grader will run the play three times with different tag selectors
+to confirm each task file runs independently:
+
+```bash
+# Only the install file:
+ansible-playbook monitoring.yml --tags install
+
+# Only the config file:
+ansible-playbook monitoring.yml --tags config
+
+# Skip the service file:
+ansible-playbook monitoring.yml --skip-tags service
+
+# Full run:
+ansible-playbook monitoring.yml
+```
+
+After a full run, on any managed node:
+```bash
+rpm -q sysstat                            # sysstat-X.Y.Z
+grep '^ENABLED' /etc/sysconfig/sysstat    # ENABLED="true"
+systemctl is-active sysstat               # active
+```
 
 ---
 
@@ -616,210 +735,359 @@ db_user: dbuser
 
 ## Solution 07 — Role with Vars
 
+**Create the skeleton:**
 ```bash
-# Create role
-ansible-galaxy init cache
+cd /home/student/ansible
+ansible-galaxy init roles/cache
+```
+
+**File: roles/cache/defaults/main.yml**
+```yaml
+---
+cache_port: 6379
+cache_maxmemory: 128mb
+cache_bind: 127.0.0.1
 ```
 
 **File: roles/cache/vars/main.yml**
 ```yaml
 ---
-cache_port: 6379
+# These OVERRIDE the defaults (vars has higher precedence)
+cache_port: 6380
 cache_maxmemory: 256mb
-cache_timeout: 300
 ```
 
 **File: roles/cache/tasks/main.yml**
 ```yaml
 ---
-- name: Create cache config
+- name: Deploy /etc/cache.conf
   ansible.builtin.copy:
     content: |
-      port {{ cache_port }}
-      maxmemory {{ cache_maxmemory }}
-      timeout {{ cache_timeout }}
+      port = {{ cache_port }}
+      maxmemory = {{ cache_maxmemory }}
+      bind = {{ cache_bind }}
     dest: /etc/cache.conf
+    owner: root
+    group: root
     mode: '0644'
 ```
 
+**File: /home/student/ansible/cache.yml**
+```yaml
+---
+- name: Apply cache role
+  hosts: managed
+  become: true
+  roles:
+    - cache
+```
+
+**Run and verify:**
+```bash
+ansible-playbook cache.yml
+ansible managed -b -m shell -a 'cat /etc/cache.conf'
+# Output:
+# port = 6380          ← from vars/main.yml
+# maxmemory = 256mb    ← from vars/main.yml
+# bind = 127.0.0.1     ← from defaults/main.yml
+```
+
 **Explanation:**
-- `vars/` has higher precedence than `defaults/`
-- Harder to override
-- Use for role-specific constants
-- Not meant to be changed
+- `defaults/main.yml` is the LOWEST precedence — easy to override
+- `vars/main.yml` is HIGH precedence — hard to override (only command-line
+  `--extra-vars` beats it)
+- `cache_bind` isn't redeclared in `vars/main.yml`, so the default wins
+- Use `vars/` for role-specific values that shouldn't change across deployments
 
 ---
 
 ## Solution 08 — Role Dependencies
 
+**Create the three roles:**
 ```bash
-# Create role
-ansible-galaxy init wordpress
+cd /home/student/ansible
+ansible-galaxy init roles/base
+ansible-galaxy init roles/apache
+ansible-galaxy init roles/wordpress
+```
+
+**File: roles/base/tasks/main.yml**
+```yaml
+---
+- name: Mark base role execution
+  ansible.builtin.copy:
+    content: "base role ran at {{ ansible_date_time.iso8601 }}\n"
+    dest: /tmp/base-installed.txt
+    mode: '0644'
+```
+
+**File: roles/apache/tasks/main.yml**
+```yaml
+---
+- name: Mark apache role execution
+  ansible.builtin.copy:
+    content: "apache role ran at {{ ansible_date_time.iso8601 }}\n"
+    dest: /tmp/apache-installed.txt
+    mode: '0644'
 ```
 
 **File: roles/wordpress/meta/main.yml**
 ```yaml
 ---
 dependencies:
+  - role: base
   - role: apache
-  - role: database
 ```
 
 **File: roles/wordpress/tasks/main.yml**
 ```yaml
 ---
-- name: Install WordPress
-  ansible.builtin.debug:
-    msg: "WordPress installation (dependencies already run)"
+- name: Mark wordpress role execution
+  ansible.builtin.copy:
+    content: "wordpress role ran at {{ ansible_date_time.iso8601 }}\n"
+    dest: /tmp/wordpress-installed.txt
+    mode: '0644'
 ```
 
-**Playbook:**
+**File: /home/student/ansible/wordpress.yml**
 ```yaml
 ---
-- name: Deploy WordPress
-  hosts: all
+- name: Deploy wordpress (with auto-resolved dependencies)
+  hosts: managed
   become: true
-  
   roles:
     - wordpress
 ```
 
+**Run and verify:**
+```bash
+ansible-playbook wordpress.yml
+ansible managed -b -m shell -a 'ls -la /tmp/*-installed.txt'
+ansible node1.example.com -b -m shell -a 'head -1 /tmp/base-installed.txt'
+ansible node1.example.com -b -m shell -a 'head -1 /tmp/apache-installed.txt'
+ansible node1.example.com -b -m shell -a 'head -1 /tmp/wordpress-installed.txt'
+```
+
+The timestamps confirm the execution order: base → apache → wordpress.
+
 **Explanation:**
-- Dependencies run before role
-- Listed in `meta/main.yml`
-- Automatic execution
-- Proper order guaranteed
+- `meta/main.yml` dependencies run BEFORE the role itself
+- Order in `dependencies:` is preserved (base first, then apache)
+- The playbook only references `wordpress`; the others are pulled in automatically
+- Each role's marker file lets you SEE that all 3 actually ran (no silent magic)
 
 ---
 
 ## Solution 09 — Role with Multiple Task Files
 
+**Create the skeleton:**
 ```bash
-# Create role
-ansible-galaxy init fullstack
+cd /home/student/ansible
+ansible-galaxy init roles/fullstack
 ```
 
 **File: roles/fullstack/tasks/main.yml**
 ```yaml
 ---
-- name: Include installation tasks
+- name: Install packages
   ansible.builtin.import_tasks: install.yml
 
-- name: Include configuration tasks
+- name: Configure application
   ansible.builtin.import_tasks: configure.yml
 
-- name: Include service tasks
+- name: Start service
   ansible.builtin.import_tasks: service.yml
 ```
 
 **File: roles/fullstack/tasks/install.yml**
 ```yaml
 ---
-- name: Install packages
+- name: Install httpd
   ansible.builtin.dnf:
-    name:
-      - httpd
-      - php
-      - mariadb-server
+    name: httpd
     state: present
 ```
 
 **File: roles/fullstack/tasks/configure.yml**
 ```yaml
 ---
-- name: Configure application
+- name: Deploy index.html
   ansible.builtin.copy:
-    content: "<?php phpinfo(); ?>"
-    dest: /var/www/html/info.php
+    content: "Fullstack role from {{ ansible_hostname }} — phase: configure OK\n"
+    dest: /var/www/html/index.html
+    owner: root
+    group: root
     mode: '0644'
 ```
 
 **File: roles/fullstack/tasks/service.yml**
 ```yaml
 ---
-- name: Start services
+- name: Start and enable httpd
   ansible.builtin.service:
-    name: "{{ item }}"
+    name: httpd
     state: started
     enabled: true
-  loop:
-    - httpd
-    - mariadb
 ```
+
+**File: /home/student/ansible/fullstack.yml**
+```yaml
+---
+- name: Apply fullstack role
+  hosts: managed
+  become: true
+  roles:
+    - fullstack
+```
+
+**Run and verify:**
+```bash
+ansible-playbook fullstack.yml
+ansible managed -b -m shell -a 'systemctl is-active httpd'
+ansible managed -b -m shell -a 'curl -s http://localhost'
+# Fullstack role from node1 — phase: configure OK
+# Fullstack role from node2 — phase: configure OK
+```
+
+**Explanation:**
+- `main.yml` becomes a thin orchestrator — easy to reason about
+- `import_tasks` is STATIC (resolved at parse time); use `include_tasks`
+  if you need dynamic decisions (`when:`, `loop:`)
+- Splitting by phase (install / configure / service) is the canonical role layout
+- The curl output proves each phase actually ran
 
 ---
 
 ## Solution 10 — Apply Role to Specific Hosts
 
-**Playbook: webservers.yml**
+**File: /home/student/ansible/apply-managed.yml**
 ```yaml
 ---
-- name: Configure web servers
-  hosts: webservers
+- name: Apply apache role only to managed hosts
+  hosts: managed
   become: true
-  
   roles:
     - apache
 ```
 
+**Run and verify:**
+```bash
+ansible-playbook apply-managed.yml
+
+# Marker file present on every managed node:
+ansible managed -b -m shell -a 'test -f /tmp/apache-installed.txt && echo present'
+
+# Marker file NOT present on control:
+ansible control -b -m shell -a 'test -f /tmp/apache-installed.txt'
+# Expected: rc=1 (file does not exist)
+```
+
 **Explanation:**
-- `hosts: webservers` targets group
-- Role applied only to that group
-- Other hosts unaffected
-- Group defined in inventory
+- `hosts: managed` matches ONLY the inventory's `[managed]` group
+- The control node (in group `[control]`) is excluded automatically
+- `webservers` does NOT exist in this lab's inventory — targeting it
+  would produce an empty host list and a no-op play
+- Verification check confirms BOTH conditions: present on managed, absent on control
 
 ---
 
 ## Solution 11 — Role with Tags
 
+**Create the skeleton:**
 ```bash
-# Create role
-ansible-galaxy init monitoring
+cd /home/student/ansible
+ansible-galaxy init roles/monitoring
 ```
 
 **File: roles/monitoring/tasks/main.yml**
 ```yaml
 ---
-- name: Install monitoring packages
+- name: Install metrics agent
+  ansible.builtin.import_tasks: install.yml
+  tags: [install]
+
+- name: Configure metrics agent
+  ansible.builtin.import_tasks: config.yml
+  tags: [config]
+
+- name: Manage service
+  ansible.builtin.import_tasks: service.yml
+  tags: [service]
+```
+
+**File: roles/monitoring/tasks/install.yml**
+```yaml
+---
+- name: Install sysstat (ships in BaseOS/AppStream — no extra repo needed)
   ansible.builtin.dnf:
-    name:
-      - nagios
-      - prometheus
+    name: sysstat
     state: present
-  tags:
-    - install
-    - packages
+```
 
-- name: Configure monitoring
-  ansible.builtin.copy:
-    content: "monitoring_config=true"
-    dest: /etc/monitoring.conf
+**File: roles/monitoring/tasks/config.yml**
+```yaml
+---
+- name: Enable sysstat data collection
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/sysstat
+    regexp: '^ENABLED='
+    line: 'ENABLED="true"'
+    create: true
     mode: '0644'
-  tags:
-    - config
-    - configuration
+```
 
-- name: Start monitoring service
+**File: roles/monitoring/tasks/service.yml**
+```yaml
+---
+- name: Start and enable sysstat
   ansible.builtin.service:
-    name: nagios
+    name: sysstat
     state: started
     enabled: true
-  tags:
-    - service
-    - start
 ```
 
-**Run with tags:**
+**File: /home/student/ansible/monitoring.yml**
+```yaml
+---
+- name: Apply monitoring role
+  hosts: managed
+  become: true
+  roles:
+    - monitoring
+```
+
+**Run with different tag selectors:**
 ```bash
-# Run only install tasks
-ansible-playbook playbook.yml --tags install
+# Only install (sysstat package installed, nothing else):
+ansible-playbook monitoring.yml --tags install
 
-# Run only config tasks
-ansible-playbook playbook.yml --tags config
+# Only config (lineinfile runs, no install or service):
+ansible-playbook monitoring.yml --tags config
 
-# Skip service tasks
-ansible-playbook playbook.yml --skip-tags service
+# Skip the service start:
+ansible-playbook monitoring.yml --skip-tags service
+
+# Full run:
+ansible-playbook monitoring.yml
 ```
+
+**Verify after a full run:**
+```bash
+ansible managed -b -m shell -a 'rpm -q sysstat'
+ansible managed -b -m shell -a "grep '^ENABLED' /etc/sysconfig/sysstat"
+ansible managed -b -m shell -a 'systemctl is-active sysstat'
+# Expected: sysstat-X.Y.Z, ENABLED="true", active
+```
+
+**Explanation:**
+- `tags:` on `import_tasks` propagates to every task inside the imported file
+- Tagging at the file level (vs per-task) keeps `main.yml` clean
+- `sysstat` is in BaseOS/AppStream — works without enabling any extra repo
+  (unlike Nagios or Prometheus which need EPEL or upstream repos that
+  aren't preconfigured in the lab)
+- `--tags X` runs ONLY tasks tagged X; `--skip-tags X` runs everything EXCEPT X
+- This is the standard pattern for "install-only" or "config-only" reruns
+  during exam tasks
 
 ---
 

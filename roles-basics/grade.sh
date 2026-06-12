@@ -161,89 +161,161 @@ check "defaults define db_name" 5 \
 
 echo ""
 echo -e "${YELLOW}Task 07: Role with Vars (18 pts)${NC}"
-check "role cache exists" 4 \
+check "role cache exists" 2 \
     "test -d $ROLES_DIR/cache" \
-    "Create: ansible-galaxy init cache"
+    "Create with: ansible-galaxy init roles/cache"
 
-check "cache has vars/main.yml" 5 \
+check "cache has defaults/main.yml" 2 \
+    "test -f $ROLES_DIR/cache/defaults/main.yml" \
+    "Create defaults/main.yml with cache_port, cache_maxmemory, cache_bind"
+
+check "defaults set cache_port 6379" 2 \
+    "grep -qE 'cache_port:[[:space:]]*6379' $ROLES_DIR/cache/defaults/main.yml" \
+    "defaults should set cache_port: 6379 (gets overridden by vars)"
+
+check "cache has vars/main.yml" 2 \
     "test -f $ROLES_DIR/cache/vars/main.yml" \
-    "Create: vars/main.yml"
+    "Create vars/main.yml that overrides cache_port and cache_maxmemory"
 
-check "vars define cache_port" 4 \
-    "grep -q 'cache_port:' $ROLES_DIR/cache/vars/main.yml" \
-    "Define: cache_port in vars"
+check "vars override cache_port to 6380" 3 \
+    "grep -qE 'cache_port:[[:space:]]*6380' $ROLES_DIR/cache/vars/main.yml" \
+    "vars/main.yml must set cache_port: 6380 (higher precedence than defaults)"
 
-check "vars define cache_maxmemory" 5 \
-    "grep -q 'cache_maxmemory:' $ROLES_DIR/cache/vars/main.yml" \
-    "Define: cache_maxmemory in vars"
+check "vars override cache_maxmemory to 256mb" 2 \
+    "grep -qE 'cache_maxmemory:[[:space:]]*256mb' $ROLES_DIR/cache/vars/main.yml" \
+    "vars/main.yml must set cache_maxmemory: 256mb"
+
+check "cache.yml playbook exists and targets managed" 2 \
+    "test -f $ANSIBLE_DIR/cache.yml && grep -qE 'hosts:[[:space:]]*managed' $ANSIBLE_DIR/cache.yml" \
+    "Create cache.yml with hosts: managed and roles: [cache]"
+
+check "/etc/cache.conf deployed to managed nodes" 3 \
+    "ansible managed -b -m shell -a 'grep -q \"port = 6380\" /etc/cache.conf' &>/dev/null" \
+    "Run cache.yml; /etc/cache.conf must show port = 6380 (vars overrode defaults)"
 
 echo ""
 echo -e "${YELLOW}Task 08: Role Dependencies (20 pts)${NC}"
-check "role wordpress exists" 5 \
+check "role base exists" 2 \
+    "test -d $ROLES_DIR/base" \
+    "Create with: ansible-galaxy init roles/base"
+
+check "role apache exists" 2 \
+    "test -d $ROLES_DIR/apache" \
+    "Create with: ansible-galaxy init roles/apache"
+
+check "role wordpress exists" 2 \
     "test -d $ROLES_DIR/wordpress" \
-    "Create: ansible-galaxy init wordpress"
+    "Create with: ansible-galaxy init roles/wordpress"
 
-check "wordpress has meta/main.yml" 5 \
-    "test -f $ROLES_DIR/wordpress/meta/main.yml" \
-    "Create: meta/main.yml"
+check "wordpress meta/main.yml declares both deps" 4 \
+    "grep -q 'dependencies:' $ROLES_DIR/wordpress/meta/main.yml && grep -q 'base' $ROLES_DIR/wordpress/meta/main.yml && grep -q 'apache' $ROLES_DIR/wordpress/meta/main.yml" \
+    "meta/main.yml must declare dependencies on base AND apache"
 
-check "meta defines dependencies" 5 \
-    "grep -q 'dependencies:' $ROLES_DIR/wordpress/meta/main.yml" \
-    "Define: dependencies in meta/main.yml"
+check "wordpress.yml applies ONLY wordpress role" 3 \
+    "test -f $ANSIBLE_DIR/wordpress.yml && grep -q 'wordpress' $ANSIBLE_DIR/wordpress.yml" \
+    "Create wordpress.yml; playbook should list only the wordpress role (deps resolve automatically)"
 
-check "meta includes apache dependency" 5 \
-    "grep -A 5 'dependencies:' $ROLES_DIR/wordpress/meta/main.yml | grep -q 'apache'" \
-    "Add: apache as dependency"
+check "/tmp/base-installed.txt exists on managed" 3 \
+    "ansible managed -b -m shell -a 'test -f /tmp/base-installed.txt' &>/dev/null" \
+    "After running, base role's marker file must exist on every managed node"
+
+check "/tmp/apache-installed.txt exists on managed" 2 \
+    "ansible managed -b -m shell -a 'test -f /tmp/apache-installed.txt' &>/dev/null" \
+    "After running, apache role's marker file must exist on every managed node"
+
+check "/tmp/wordpress-installed.txt exists on managed" 2 \
+    "ansible managed -b -m shell -a 'test -f /tmp/wordpress-installed.txt' &>/dev/null" \
+    "After running, wordpress role's marker file must exist on every managed node"
 
 echo ""
 echo -e "${YELLOW}Task 09: Role with Multiple Task Files (20 pts)${NC}"
-check "role fullstack exists" 5 \
+check "role fullstack exists" 2 \
     "test -d $ROLES_DIR/fullstack" \
-    "Create: ansible-galaxy init fullstack"
+    "Create with: ansible-galaxy init roles/fullstack"
 
-check "fullstack has tasks/install.yml" 5 \
-    "test -f $ROLES_DIR/fullstack/tasks/install.yml" \
-    "Create: tasks/install.yml"
+check "fullstack has install.yml, configure.yml, service.yml" 3 \
+    "test -f $ROLES_DIR/fullstack/tasks/install.yml && test -f $ROLES_DIR/fullstack/tasks/configure.yml && test -f $ROLES_DIR/fullstack/tasks/service.yml" \
+    "Create install.yml, configure.yml, service.yml under tasks/"
 
-check "fullstack has tasks/configure.yml" 5 \
-    "test -f $ROLES_DIR/fullstack/tasks/configure.yml" \
-    "Create: tasks/configure.yml"
+check "main.yml uses import_tasks for all three" 3 \
+    "grep -c 'import_tasks' $ROLES_DIR/fullstack/tasks/main.yml | xargs -I {} test {} -ge 3" \
+    "main.yml should orchestrate with 3 import_tasks (install/configure/service)"
 
-check "main.yml includes other tasks" 5 \
-    "grep -q 'include_tasks\\|import_tasks' $ROLES_DIR/fullstack/tasks/main.yml" \
-    "Use: include_tasks or import_tasks in main.yml"
+check "install.yml installs httpd" 2 \
+    "grep -qE 'name:[[:space:]]*httpd' $ROLES_DIR/fullstack/tasks/install.yml" \
+    "install.yml should install httpd via ansible.builtin.dnf"
+
+check "configure.yml writes /var/www/html/index.html" 2 \
+    "grep -q '/var/www/html/index.html' $ROLES_DIR/fullstack/tasks/configure.yml" \
+    "configure.yml deploys /var/www/html/index.html with a marker message"
+
+check "service.yml starts and enables httpd" 2 \
+    "grep -q 'httpd' $ROLES_DIR/fullstack/tasks/service.yml && grep -qE 'state:[[:space:]]*started' $ROLES_DIR/fullstack/tasks/service.yml" \
+    "service.yml should start and enable httpd"
+
+check "fullstack.yml playbook applies role to managed" 2 \
+    "test -f $ANSIBLE_DIR/fullstack.yml && grep -qE 'hosts:[[:space:]]*managed' $ANSIBLE_DIR/fullstack.yml" \
+    "Create fullstack.yml with hosts: managed and roles: [fullstack]"
+
+check "httpd is active on managed nodes" 2 \
+    "ansible managed -b -m shell -a 'systemctl is-active httpd' &>/dev/null" \
+    "Run the playbook; httpd must be active on every managed node"
+
+check "curl http://localhost returns marker content" 2 \
+    "ansible managed -b -m shell -a 'curl -s http://localhost | grep -q Fullstack' &>/dev/null" \
+    "/var/www/html/index.html must contain the 'Fullstack' marker text"
 
 echo ""
 echo -e "${YELLOW}Task 10: Apply Role to Specific Hosts (15 pts)${NC}"
-check "playbook webservers.yml exists" 5 \
-    "test -f $ANSIBLE_DIR/webservers.yml" \
-    "Create: webservers.yml playbook"
+check "playbook apply-managed.yml exists" 3 \
+    "test -f $ANSIBLE_DIR/apply-managed.yml" \
+    "Create apply-managed.yml"
 
-check "playbook targets webservers group" 5 \
-    "grep -q 'hosts:.*webservers' $ANSIBLE_DIR/webservers.yml" \
-    "Set: hosts: webservers"
+check "playbook targets 'managed' group (NOT webservers)" 5 \
+    "grep -qE 'hosts:[[:space:]]*managed' $ANSIBLE_DIR/apply-managed.yml" \
+    "Use hosts: managed — the lab inventory has no 'webservers' group"
 
-check "playbook uses roles section" 5 \
-    "grep -q 'roles:' $ANSIBLE_DIR/webservers.yml" \
-    "Use: roles: section in playbook"
+check "playbook uses roles: section with apache" 3 \
+    "grep -q 'roles:' $ANSIBLE_DIR/apply-managed.yml && grep -q 'apache' $ANSIBLE_DIR/apply-managed.yml" \
+    "Apply the apache role via the roles: keyword"
+
+check "apache marker file exists on managed nodes" 2 \
+    "ansible managed -b -m shell -a 'test -f /tmp/apache-installed.txt' &>/dev/null" \
+    "Run the playbook; apache's marker file must appear on managed"
+
+check "apache marker file does NOT exist on control" 2 \
+    "! ansible control -b -m shell -a 'test -f /tmp/apache-installed.txt' &>/dev/null" \
+    "The control node should NOT have been touched by this play"
 
 echo ""
 echo -e "${YELLOW}Task 11: Role with Tags (18 pts)${NC}"
-check "role monitoring exists" 5 \
+check "role monitoring exists" 2 \
     "test -d $ROLES_DIR/monitoring" \
-    "Create: ansible-galaxy init monitoring"
+    "Create with: ansible-galaxy init roles/monitoring"
 
-check "monitoring tasks have install tag" 5 \
-    "grep -q 'tags:.*install' $ROLES_DIR/monitoring/tasks/main.yml" \
-    "Add: tags: install to tasks"
+check "monitoring has install/config/service task files" 3 \
+    "test -f $ROLES_DIR/monitoring/tasks/install.yml && test -f $ROLES_DIR/monitoring/tasks/config.yml && test -f $ROLES_DIR/monitoring/tasks/service.yml" \
+    "Create install.yml, config.yml, service.yml under tasks/"
 
-check "monitoring tasks have config tag" 4 \
-    "grep -q 'tags:.*config' $ROLES_DIR/monitoring/tasks/main.yml" \
-    "Add: tags: config to tasks"
+check "main.yml uses tagged import_tasks" 4 \
+    "grep -q 'import_tasks' $ROLES_DIR/monitoring/tasks/main.yml && grep -cE 'tags:[[:space:]]*\\[' $ROLES_DIR/monitoring/tasks/main.yml | xargs -I {} test {} -ge 3" \
+    "main.yml should have 3 import_tasks each with tags: [install] / [config] / [service]"
 
-check "monitoring tasks have service tag" 4 \
-    "grep -q 'tags:.*service' $ROLES_DIR/monitoring/tasks/main.yml" \
-    "Add: tags: service to tasks"
+check "install.yml installs sysstat (NOT nagios/prometheus)" 3 \
+    "grep -qE 'name:[[:space:]]*sysstat' $ROLES_DIR/monitoring/tasks/install.yml" \
+    "Use sysstat (ships in BaseOS/AppStream); nagios/prometheus need extra repos not in the lab"
+
+check "config.yml enables sysstat via lineinfile" 2 \
+    "grep -q 'lineinfile' $ROLES_DIR/monitoring/tasks/config.yml && grep -q '/etc/sysconfig/sysstat' $ROLES_DIR/monitoring/tasks/config.yml" \
+    "config.yml should use lineinfile to set ENABLED=\"true\" in /etc/sysconfig/sysstat"
+
+check "service.yml starts and enables sysstat" 2 \
+    "grep -q 'sysstat' $ROLES_DIR/monitoring/tasks/service.yml && grep -qE 'enabled:[[:space:]]*(true|yes)' $ROLES_DIR/monitoring/tasks/service.yml" \
+    "service.yml should start and enable the sysstat service"
+
+check "sysstat installed on managed nodes (post-run)" 2 \
+    "ansible managed -b -m shell -a 'rpm -q sysstat' &>/dev/null" \
+    "Run the playbook; sysstat must be installed on every managed node"
 
 echo ""
 echo -e "${YELLOW}Task 12: Role with Conditionals (18 pts)${NC}"
